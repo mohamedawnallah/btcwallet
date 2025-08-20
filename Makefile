@@ -116,6 +116,11 @@ unit-bench:
 	@$(call print, "Running benchmark tests.")
 	$(UNIT_BENCH)
 
+#? unit-module: Run unit tests of all submodules
+unit-module:
+	@$(call print, "Running submodule unit tests.")
+	scripts/unit_test_modules.sh
+
 # =========
 # UTILITIES
 # =========
@@ -160,6 +165,7 @@ tidy-module-check: tidy-module
 	unit-race \
 	unit-debug \
 	unit-bench \
+	unit-module \
 	fmt \
 	fmt-check \
 	lint \
