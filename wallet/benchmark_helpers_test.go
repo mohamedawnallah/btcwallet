@@ -371,3 +371,43 @@ func listAccountsDeprecated(w *Wallet) (*AccountsResult, error) {
 		CurrentBlockHeight: finalBlockHeight,
 	}, nil
 }
+
+// listAccountsByNameDeprecated wraps the deprecated Accounts API to satisfy the
+// same contract as ListAccountsByName by calling Accounts API across all active
+// key scopes, filtering by account name, and aggregating the results.
+func listAccountsByNameDeprecated(w *Wallet,
+	name string) (*AccountsResult, error) {
+
+	var (
+		matchingAccounts []AccountResult
+		finalBlockHash   chainhash.Hash
+		finalBlockHeight int32
+		scopeManagers    = w.addrStore.ActiveScopedKeyManagers()
+	)
+
+	for _, scopeMgr := range scopeManagers {
+		scope := scopeMgr.Scope()
+		result, err := w.Accounts(scope)
+		if err != nil {
+			return nil, err
+		}
+
+		// Filter accounts by name from this scope's results.
+		for _, account := range result.Accounts {
+			if account.AccountName == name {
+				matchingAccounts = append(
+					matchingAccounts, account,
+				)
+			}
+		}
+
+		finalBlockHash = result.CurrentBlockHash
+		finalBlockHeight = result.CurrentBlockHeight
+	}
+
+	return &AccountsResult{
+		Accounts:           matchingAccounts,
+		CurrentBlockHash:   finalBlockHash,
+		CurrentBlockHeight: finalBlockHeight,
+	}, nil
+}
