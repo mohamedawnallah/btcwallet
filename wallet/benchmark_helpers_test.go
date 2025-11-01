@@ -869,6 +869,76 @@ func broadcastConcurrentOldAPI(b *testing.B, w *Wallet, txs []*wire.MsgTx) {
 	wg.Wait()
 }
 
+// benchmarkSequentialBroadcast runs the core sequential benchmark logic,
+// parameterized by txPoolSize and whether the same address is used.
+func benchmarkSequentialBroadcast(b *testing.B, txPoolSize uint32,
+	sameAddress bool, useNewAPI bool) {
+
+	b.Helper()
+
+	keyScope := waddrmgr.KeyScopeBIP0084
+
+	miner := setupMiner(b, &chaincfg.RegressionNetParams)
+
+	bw := setupBenchmarkWallet(b, benchmarkWalletConfig{
+		scopes: []waddrmgr.KeyScope{keyScope},
+		miner:  miner,
+	})
+	w := bw.Wallet
+
+	// Create transaction pool.
+	txPool := createBenchmarkTransactions(
+		b, miner, w, keyScope, txPoolSize, 0, sameAddress,
+	)
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for i := 0; b.Loop(); i++ {
+		tx := txPool[i%len(txPool)]
+
+		if useNewAPI {
+			err := w.Broadcast(b.Context(), tx, "sequential-after")
+			if err != nil {
+				b.Logf("Broadcast error: %v", err)
+			}
+		} else {
+			err := w.PublishTransaction(tx, "sequential-before")
+			if err != nil {
+				b.Logf("PublishTransaction error: %v", err)
+			}
+		}
+
+		b.StopTimer()
+
+		// Check mempool size after broadcast to verify how many
+		// transactions actually made it and detect false positives
+		// (broadcasts that appeared to succeed but didn't reach the
+		// mempool).
+		mempoolTxs, err := miner.Client.GetRawMempool()
+		if err != nil {
+			b.Logf("Warning: failed to get mempool: %v", err)
+		}
+
+		if testing.Verbose() {
+			b.Logf("Iteration %d: Attempted to broadcast tx, "+
+				"mempool now contains %d txs", i,
+				len(mempoolTxs))
+		}
+
+		// Mine a block to confirm transactions and clear the mempool
+		// for the next iteration. This makes each iteration idempotent,
+		// preventing mempool conflicts when reusing the transaction
+		// pool across b.N iterations.
+		_, err = miner.Client.Generate(1)
+		if err != nil {
+			b.Logf("Warning: failed to mine block: %v", err)
+		}
+
+		b.StartTimer()
+	}
+}
+
 // listAccountsDeprecated wraps the deprecated Accounts API to satisfy the same
 // contract as ListAccounts by calling Accounts API across all active key scopes
 // and aggregating the results.
