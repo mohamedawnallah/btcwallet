@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"sync"
 	"testing"
 	"time"
 
@@ -491,6 +492,389 @@ func leaseAllOutputs(tb testing.TB, w *Wallet, outpoints []wire.OutPoint,
 		)
 		require.NoError(tb, err, "failed to lease output %v", outpoint)
 	}
+}
+
+// setupMiner creates and starts an isolated btcd node via rpctest for
+// integration benchmarks. The node runs with minimal configuration (no peers,
+// no DNS seeds) suitable for controlled testing. Cleanup is handled
+// automatically via b.Cleanup.
+func setupMiner(b *testing.B, netParams *chaincfg.Params,
+	additionalArgs ...string) *rpctest.Harness {
+
+	b.Helper()
+
+	baseArgs := []string{
+		// Enable debug logging mode for all subsystems.
+		"--debuglevel=debug",
+
+		// Disable DNS seeding. It is not needed in the test
+		// environment.
+		"--nodnsseed",
+
+		// Disable listening for incoming peer connections. Though it
+		// would be overridden later by the rpctest framework for
+		// listening on localhost (127.0.0.1:<os_free_port>).
+		"--nolisten",
+
+		// Disable stall detection. It is designed for controlled test
+		// environment.
+		"--nostalldetect",
+
+		// Disable peer banning. It is not needed in the test
+		// environment.
+		"--nobanning",
+
+		// Set max inbound/outbound peers to 0. It is not needed in the
+		// test environment.
+		"--maxpeers=0",
+	}
+
+	extraArgs := append([]string(nil), baseArgs...)
+	extraArgs = append(extraArgs, additionalArgs...)
+
+	miner, err := rpctest.New(
+		netParams,
+		nil,
+		extraArgs,
+		"",
+	)
+	b.Cleanup(func() {
+		require.NoError(b, miner.TearDown())
+	})
+	require.NoError(b, err)
+
+	err = miner.SetUp(true, 1)
+	require.NoError(b, err)
+
+	return miner
+}
+
+// createBenchmarkTransactions creates a pool of signed, unconfirmed
+// transactions from the miner's funds to a wallet address. These transactions
+// are NOT broadcast and are reused across benchmark iterations to test wallet
+// broadcast performance.
+//
+// TODO(mohamedawnallah): refactor this <-> no need to skip the linter
+//
+//nolint:cyclop
+func createBenchmarkTransactions(b *testing.B, miner *rpctest.Harness,
+	w *Wallet, keyScope waddrmgr.KeyScope, txPoolSize,
+	blocksToMine uint32, sameAddress bool) []*wire.MsgTx {
+
+	b.Helper()
+
+	var (
+		// Split outputs: large enough to cover final tx output + fees +
+		// change. It is 0.01 BTC per split output.
+		splitOutputAmt = int64(0.01 * btcutil.SatoshiPerBitcoin)
+
+		// Final tx outputs: smaller so there's room for fees. It is
+		// 0.005 BTC per final tx.
+		finalOutputAmt = int64(0.005 * btcutil.SatoshiPerBitcoin)
+
+		feeRateSatPerByte = btcutil.Amount(10)
+
+		addChangeOutput = true
+
+		// Initial blocks to mine for coinbase maturity. It is used in
+		// case of there is no user-defined value provided.
+		initialBlocks = uint32(1000)
+	)
+
+	if blocksToMine != 0 {
+		initialBlocks = blocksToMine
+	}
+
+	b.Logf("Mining %d blocks for coinbase maturity", initialBlocks)
+	_, err := miner.Client.Generate(initialBlocks)
+	require.NoError(b, err)
+
+	// Query how many mature coinbases are available.
+	blockCount, err := miner.Client.GetBlockCount()
+	require.NoError(b, err)
+
+	const coinbaseMaturity = 100
+
+	numMatureCoinbases := uint32(blockCount) - coinbaseMaturity
+
+	// Determine how many coinbases to split. We want to create at least
+	// txPoolSize UTXOs, so calculate minimum splits needed. Each split
+	// creates outputsPerSplit UTXOs. Keeping outputsPerSplit in a
+	// reasonable range to avoid huge transactions.
+	const outputsPerSplit = 100
+
+	numSplitsNeeded := (txPoolSize + outputsPerSplit - 1) / outputsPerSplit
+
+	// Don't split more coinbases than available.
+	if numSplitsNeeded > numMatureCoinbases {
+		numSplitsNeeded = numMatureCoinbases
+	}
+
+	totalUTXOs := numSplitsNeeded * outputsPerSplit
+
+	b.Logf("Pass 1: Using %d of %d mature coinbases, splitting each into "+
+		"%d outputs of %d sats = %d total UTXOs (need %d)",
+		numSplitsNeeded, numMatureCoinbases, outputsPerSplit,
+		splitOutputAmt, totalUTXOs, txPoolSize)
+
+	splitCoinbasesToMiner(
+		b, miner, numSplitsNeeded, outputsPerSplit, splitOutputAmt,
+		feeRateSatPerByte,
+	)
+
+	// Pass 2: Create final transactions from miner's split UTXOs to wallet.
+	b.Logf("Pass 2: Creating %d transactions from miner to wallet",
+		txPoolSize)
+
+	txs := make([]*wire.MsgTx, txPoolSize)
+
+	// Generate addresses conditionally based on address generation flag.
+	//
+	// TODO(mohamedawnallah): refactor this <-> no need to skip the linter
+	//
+	//nolint:nestif
+	if sameAddress {
+		addr, err := w.CurrentAddress(
+			waddrmgr.DefaultAccountNum, keyScope,
+		)
+		require.NoError(b, err)
+
+		for i := range txPoolSize {
+			pkScript, err := txscript.PayToAddrScript(addr)
+			require.NoError(b, err)
+
+			// Create transaction from miner to wallet address.
+			outputs := []*wire.TxOut{
+				{
+					Value:    finalOutputAmt,
+					PkScript: pkScript,
+				},
+			}
+
+			tx, err := miner.CreateTransaction(
+				outputs, feeRateSatPerByte, addChangeOutput,
+			)
+			require.NoError(b, err)
+
+			txs[i] = tx
+		}
+
+		b.Logf("Created %d unbroadcast transactions from miner to "+
+			"wallet address %s", txPoolSize, addr.String())
+	} else {
+		// Generate a unique address for each transaction.
+		for i := range txPoolSize {
+			addr, err := w.NewAddressDeprecated(
+				waddrmgr.DefaultAccountNum, keyScope,
+			)
+			require.NoError(b, err)
+
+			pkScript, err := txscript.PayToAddrScript(addr)
+			require.NoError(b, err)
+
+			// Create transaction from miner to unique wallet
+			// address.
+			outputs := []*wire.TxOut{
+				{
+					Value:    finalOutputAmt,
+					PkScript: pkScript,
+				},
+			}
+
+			tx, err := miner.CreateTransaction(
+				outputs, feeRateSatPerByte, addChangeOutput,
+			)
+			require.NoError(b, err)
+
+			txs[i] = tx
+		}
+
+		b.Logf("Created %d unbroadcast transactions from miner to "+
+			"%d unique wallet addresses", txPoolSize, txPoolSize)
+	}
+
+	return txs
+}
+
+// splitCoinbasesToMiner splits coinbase outputs into many smaller UTXOs by
+// sending them to the miner's own address. This creates abundant UTXOs for
+// creating many transactions without running out of coins.
+func splitCoinbasesToMiner(b *testing.B, miner *rpctest.Harness,
+	numSplits, outputsPerSplit uint32, amtPerOutput int64,
+	feeRate btcutil.Amount) {
+
+	b.Helper()
+
+	// Get miner's address.
+	minerAddr, err := miner.NewAddress()
+	require.NoError(b, err)
+
+	pkScript, err := txscript.PayToAddrScript(minerAddr)
+	require.NoError(b, err)
+
+	for range numSplits {
+		// Create transaction with many outputs to miner's own address.
+		outputs := make([]*wire.TxOut, outputsPerSplit)
+		for j := range outputsPerSplit {
+			outputs[j] = &wire.TxOut{
+				Value:    amtPerOutput,
+				PkScript: pkScript,
+			}
+		}
+
+		tx, err := miner.CreateTransaction(outputs, feeRate, true)
+		require.NoError(b, err)
+
+		_, err = miner.Client.SendRawTransaction(tx, false)
+		require.NoError(b, err)
+	}
+
+	// Final confirmation.
+	_, err = miner.Client.Generate(1)
+	require.NoError(b, err)
+
+	b.Logf("Split complete: created %d miner UTXOs",
+		numSplits*outputsPerSplit)
+}
+
+// selectTransactions selects a subset of transactions from the pool for each
+// benchmark iteration. The benchmarkIteration parameter ensures different
+// transactions are selected across b.N iterations, making each iteration
+// idempotent. Assumes candidatesCount < len(pool) to avoid selecting the same
+// transaction twice within a single iteration.
+func selectBenchmarkTransactions(pool []*wire.MsgTx, candidatesCount,
+	benchmarkIteration int) []*wire.MsgTx {
+
+	selected := make([]*wire.MsgTx, candidatesCount)
+
+	for i := range candidatesCount {
+		// Cycle through the pool.
+		idx := (benchmarkIteration*candidatesCount + i) % len(pool)
+		selected[i] = pool[idx]
+	}
+
+	return selected
+}
+
+// benchmarkConcurrentBroadcast runs the core benchmark logic for concurrent
+// broadcast operations.
+//
+//nolint:unparam
+func benchmarkConcurrentBroadcast(b *testing.B, numConcurrentTxs int,
+	txPoolSize uint32, useNewAPI, sameAddress bool) {
+
+	b.Helper()
+
+	keyScope := waddrmgr.KeyScopeBIP0084
+
+	miner := setupMiner(b, &chaincfg.RegressionNetParams)
+
+	bw := setupBenchmarkWallet(b, benchmarkWalletConfig{
+		scopes: []waddrmgr.KeyScope{keyScope},
+		miner:  miner,
+	})
+	w := bw.Wallet
+
+	// Create a pool of transactions using the miner's funds.
+	txPool := createBenchmarkTransactions(
+		b, miner, w, keyScope, txPoolSize, 0, sameAddress,
+	)
+
+	b.Logf("Broadcasting %d concurrent transactions per benchmark "+
+		"iteration ...", numConcurrentTxs)
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for i := 0; b.Loop(); i++ {
+		txs := selectBenchmarkTransactions(txPool, numConcurrentTxs, i)
+
+		if useNewAPI {
+			broadcastConcurrentNewAPI(b, w, txs)
+		} else {
+			broadcastConcurrentOldAPI(b, w, txs)
+		}
+
+		b.StopTimer()
+
+		// Check mempool size after broadcast to verify how many
+		// transactions actually made it and detect false positives
+		// (broadcasts that appeared to succeed but didn't reach the
+		// mempool).
+		mempoolTxs, err := miner.Client.GetRawMempool()
+		if err != nil {
+			b.Logf("Warning: failed to get mempool: %v", err)
+		}
+
+		if testing.Verbose() {
+			b.Logf("Iteration %d: Attempted to broadcast %d txs, "+
+				"mempool now contains %d txs", i,
+				numConcurrentTxs, len(mempoolTxs))
+		}
+
+		// Mine a block to confirm transactions and clear the mempool
+		// for the next iteration. This makes each iteration idempotent,
+		// preventing mempool conflicts when reusing the transaction
+		// pool across b.N iterations.
+		_, err = miner.Client.Generate(1)
+		if err != nil {
+			b.Logf("Warning: failed to mine block: %v", err)
+		}
+
+		b.StartTimer()
+	}
+}
+
+// broadcastConcurrentNewAPI broadcasts transactions concurrently using the new
+// Broadcast API.
+func broadcastConcurrentNewAPI(b *testing.B, w *Wallet, txs []*wire.MsgTx) {
+	b.Helper()
+
+	const txLabel = "broadcastConcurrentNewAPI"
+
+	var wg sync.WaitGroup
+
+	for _, tx := range txs {
+		wg.Add(1)
+
+		go func(tx *wire.MsgTx) {
+			defer wg.Done()
+
+			err := w.Broadcast(b.Context(), tx, txLabel)
+			if err != nil {
+				b.Logf("Broadcast error for tx %s: %v",
+					tx.TxHash(), err)
+			}
+		}(tx)
+	}
+
+	wg.Wait()
+}
+
+// broadcastConcurrentOldAPI broadcasts transactions concurrently using the old
+// PublishTransaction API.
+func broadcastConcurrentOldAPI(b *testing.B, w *Wallet, txs []*wire.MsgTx) {
+	b.Helper()
+
+	const txLabel = "broadcastConcurrentOldAPI"
+
+	var wg sync.WaitGroup
+
+	for _, tx := range txs {
+		wg.Add(1)
+
+		go func(tx *wire.MsgTx) {
+			defer wg.Done()
+
+			err := w.PublishTransaction(tx, txLabel)
+			if err != nil {
+				b.Logf("PublishTransaction error for tx %s: %v",
+					tx.TxHash(), err)
+			}
+		}(tx)
+	}
+
+	wg.Wait()
 }
 
 // listAccountsDeprecated wraps the deprecated Accounts API to satisfy the same
