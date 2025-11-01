@@ -44,102 +44,23 @@ func exponentialGrowth(i int) int {
 	return 1 << i
 }
 
-// benchmarkDataSize represents the test data size for a single benchmark
-// iteration.
-type benchmarkDataSize struct {
-	// numAccounts is the number of accounts to create.
-	numAccounts int
-
-	// numUTXOs is the number of UTXOs to create.
-	numUTXOs int
-
-	// numAddresses is the number of addresses to create.
-	numAddresses int
-}
-
-// benchmarkNamingInfo holds metadata for generating benchmark names.
-type benchmarkNamingInfo struct {
-	// maxAccounts is the maximum number of accounts in the benchmark
-	// series. That would helpful in determining the dynamic padding for the
-	// account digits
-	maxAccounts int
-
-	// maxUTXOs is the maximum number of UTXOs in the benchmark series. That
-	// would helpful in determining the dynamic padding for the UTXO digits.
-	maxUTXOs int
-
-	// maxAddresses is the maximum number of addresses in the benchmark
-	// series. That would helpful in determining the dynamic padding for the
-	// address digits.
-	maxAddresses int
-}
-
-// name returns a dynamically generated benchmark name based on accounts,
-// UTXOs, and addresses. Uses dynamic padding based on maximum values for
-// proper sorting in visualization tools.
-func (b benchmarkDataSize) name(namingInfo benchmarkNamingInfo) string {
-	accountDigits := len(strconv.Itoa(namingInfo.maxAccounts))
-
-	name := fmt.Sprintf("%0*d-Accounts", accountDigits, b.numAccounts)
-
-	if b.numAddresses > 0 {
-		addressDigits := len(strconv.Itoa(namingInfo.maxAddresses))
-		name += fmt.Sprintf("-%0*d-Addresses", addressDigits,
-			b.numAddresses)
+// mapRange maps fn over indices [start..end] (inclusive) and returns the
+// results. This provides functional-style array generation for benchmarks.
+//
+//nolint:unparam
+func mapRange(start, end int, fn growthFunc) []int {
+	result := make([]int, end-start+1)
+	for i := range result {
+		result[i] = fn(start + i)
 	}
 
-	if b.numUTXOs > 0 {
-		utxoDigits := len(strconv.Itoa(namingInfo.maxUTXOs))
-		name += fmt.Sprintf("-%0*d-UTXOs", utxoDigits, b.numUTXOs)
-	}
-
-	return name
+	return result
 }
 
-// benchmarkConfig holds configuration for benchmark wallet setup.
-type benchmarkConfig struct {
-	// accountGrowth is the function to use to grow the number of accounts.
-	accountGrowth growthFunc
-
-	// utxoGrowth is the function to use to grow the number of UTXOs.
-	utxoGrowth growthFunc
-
-	// addressGrowth is the function to use to grow the number of addresses.
-	addressGrowth growthFunc
-
-	// maxIterations is the maximum number of iterations to run.
-	maxIterations int
-
-	// startIndex is the index to start the benchmark at.
-	startIndex int
-}
-
-// generateBenchmarkSizes creates benchmark data sizes programmatically.
-func generateBenchmarkSizes(
-	config benchmarkConfig) ([]benchmarkDataSize, benchmarkNamingInfo) {
-
-	var sizes []benchmarkDataSize
-
-	// Calculate maximum values for proper padding.
-	maxAccounts := config.accountGrowth(config.maxIterations)
-	maxUTXOs := config.utxoGrowth(config.maxIterations)
-	maxAddresses := config.addressGrowth(config.maxIterations)
-
-	namingInfo := benchmarkNamingInfo{
-		maxAccounts:  maxAccounts,
-		maxUTXOs:     maxUTXOs,
-		maxAddresses: maxAddresses,
-	}
-
-	for i := config.startIndex; i <= config.maxIterations; i++ {
-		sizes = append(sizes, benchmarkDataSize{
-			numAccounts:  config.accountGrowth(i),
-			numUTXOs:     config.utxoGrowth(i),
-			numAddresses: config.addressGrowth(i),
-		})
-	}
-
-	return sizes, namingInfo
+// decimalWidth returns the number of characters in the decimal representation
+// of given value.
+func decimalWidth(value int) int {
+	return len(strconv.Itoa(value))
 }
 
 // benchmarkWalletConfig holds configuration for benchmark wallet setup.
