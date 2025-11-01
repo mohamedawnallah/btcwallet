@@ -12,8 +12,10 @@ import (
 	"github.com/btcsuite/btcd/btcutil/hdkeychain"
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
+	"github.com/btcsuite/btcd/integration/rpctest"
 	"github.com/btcsuite/btcd/txscript"
 	"github.com/btcsuite/btcd/wire"
+	"github.com/btcsuite/btcwallet/chain"
 	"github.com/btcsuite/btcwallet/waddrmgr"
 	"github.com/btcsuite/btcwallet/walletdb"
 	"github.com/btcsuite/btcwallet/wtxmgr"
@@ -76,6 +78,10 @@ type benchmarkWalletConfig struct {
 
 	// numAddresses is the number of addresses to create.
 	numAddresses int
+
+	// miner is an optional btcd regtest harness. If provided, the wallet
+	// will be connected to the miner via RPC for chain integration tests.
+	miner *rpctest.Harness
 }
 
 // benchmarkWallet holds a wallet and its created UTXO outpoints.
@@ -83,11 +89,15 @@ type benchmarkWallet struct {
 	*Wallet
 
 	outpoints []wire.OutPoint
+
+	// chainConn is the RPC connection to btcd if miner was provided.
+	chainConn *chain.RPCClient
 }
 
 // setupBenchmarkWallet creates a wallet with test data based on the provided
 // configuration. It distributes accounts evenly across the specified scopes
-// and returns the wallet along with the outpoints of all created UTXOs.
+// and returns the wallet along with the outpoints of all created UTXOs. If
+// config.miner is provided, the wallet is connected to the btcd node via RPC.
 func setupBenchmarkWallet(tb testing.TB,
 	config benchmarkWalletConfig) *benchmarkWallet {
 
@@ -99,6 +109,37 @@ func setupBenchmarkWallet(tb testing.TB,
 	setupT := &testing.T{}
 	w := testWallet(setupT)
 	require.False(tb, setupT.Failed(), "testWallet setup failed")
+
+	var chainConn *chain.RPCClient
+
+	// If miner provided, connect wallet to btcd.
+	if config.miner != nil {
+		rpcConfig := config.miner.RPCConfig()
+		clientConfig := &chain.RPCClientConfig{
+			Conn:              &rpcConfig,
+			Chain:             &chaincfg.RegressionNetParams,
+			ReconnectAttempts: 20,
+		}
+
+		var err error
+
+		chainConn, err = chain.NewRPCClientWithConfig(clientConfig)
+		require.NoError(tb, err)
+
+		err = chainConn.Start()
+		require.NoError(tb, err)
+
+		tb.Cleanup(func() {
+			chainConn.Stop()
+			chainConn.WaitForShutdown()
+		})
+
+		// Attach chain client to wallet.
+		w.chainClient = chainConn
+		w.chainClientLock.Lock()
+		w.chainClientSynced = true
+		w.chainClientLock.Unlock()
+	}
 
 	addresses := createTestAccounts(
 		tb, w, config.scopes, config.numAccounts,
@@ -113,6 +154,7 @@ func setupBenchmarkWallet(tb testing.TB,
 	return &benchmarkWallet{
 		Wallet:    w,
 		outpoints: outpoints,
+		chainConn: chainConn,
 	}
 }
 
