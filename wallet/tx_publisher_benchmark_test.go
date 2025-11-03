@@ -32,6 +32,12 @@ func BenchmarkBroadcastAPIConcurrentANDSameAddressUsed(b *testing.B) {
 		// addresses (false). This deliberately enables comprehensive
 		// benchmarking unique/duplicate addrs codepaths.
 		useSameAddress = true
+
+		// walletOutputsPerTx is held constant at 1 to isolate and
+		// purely measure the impact of concurrent broadcast with
+		// varying concurrency level and address reuse pattern without
+		// confounding from output count variation.
+		walletOutputsPerTx = 1
 	)
 
 	var (
@@ -51,15 +57,25 @@ func BenchmarkBroadcastAPIConcurrentANDSameAddressUsed(b *testing.B) {
 
 		b.Run(name+"/0-Before", func(b *testing.B) {
 			benchmarkConcurrentBroadcast(
-				b, concurrencyLevelsGrowth[i], txPoolSize,
-				false, useSameAddress,
+				b, concurrencyLevelsGrowth[i],
+				broadcastBenchmarkConfig{
+					txPoolSize:         txPoolSize,
+					walletOutputsPerTx: walletOutputsPerTx,
+					useNewAPI:          false,
+					sameAddress:        useSameAddress,
+				},
 			)
 		})
 
 		b.Run(name+"/1-After", func(b *testing.B) {
 			benchmarkConcurrentBroadcast(
-				b, concurrencyLevelsGrowth[i], txPoolSize, true,
-				useSameAddress,
+				b, concurrencyLevelsGrowth[i],
+				broadcastBenchmarkConfig{
+					txPoolSize:         txPoolSize,
+					walletOutputsPerTx: walletOutputsPerTx,
+					useNewAPI:          true,
+					sameAddress:        useSameAddress,
+				},
 			)
 		})
 	}
@@ -88,6 +104,12 @@ func BenchmarkBroadcastAPIConcurrentANDUniqueAddressesUsed(b *testing.B) {
 		// addresses (false). This deliberately enables comprehensive
 		// benchmarking unique/duplicate addrs codepaths.
 		useSameAddress = false
+
+		// walletOutputsPerTx is held constant at 1 to isolate and
+		// purely measure the impact of concurrent broadcast with
+		// varying concurrency level and address reuse pattern without
+		// confounding from output count variation.
+		walletOutputsPerTx = 1
 	)
 
 	var (
@@ -107,15 +129,25 @@ func BenchmarkBroadcastAPIConcurrentANDUniqueAddressesUsed(b *testing.B) {
 
 		b.Run(name+"/0-Before", func(b *testing.B) {
 			benchmarkConcurrentBroadcast(
-				b, concurrencyLevelsGrowth[i], txPoolSize,
-				false, useSameAddress,
+				b, concurrencyLevelsGrowth[i],
+				broadcastBenchmarkConfig{
+					txPoolSize:         txPoolSize,
+					walletOutputsPerTx: walletOutputsPerTx,
+					useNewAPI:          false,
+					sameAddress:        useSameAddress,
+				},
 			)
 		})
 
 		b.Run(name+"/1-After", func(b *testing.B) {
 			benchmarkConcurrentBroadcast(
-				b, concurrencyLevelsGrowth[i], txPoolSize,
-				true, useSameAddress,
+				b, concurrencyLevelsGrowth[i],
+				broadcastBenchmarkConfig{
+					txPoolSize:         txPoolSize,
+					walletOutputsPerTx: walletOutputsPerTx,
+					useNewAPI:          true,
+					sameAddress:        useSameAddress,
+				},
 			)
 		})
 	}
@@ -139,6 +171,12 @@ func BenchmarkBroadcastAPISequentialANDSameAddressUsed(b *testing.B) {
 		// addresses (false). This deliberately enables comprehensive
 		// benchmarking for unique and duplicate addrs codepaths.
 		useSameAddress = true
+
+		// walletOutputsPerTx is held constant at 1 to isolate and
+		// purely measure the impact of sequential broadcast with
+		// varying txPoolSize and address reuse pattern without
+		// confounding from output count variation.
+		walletOutputsPerTx = 1
 	)
 
 	var (
@@ -164,15 +202,26 @@ func BenchmarkBroadcastAPISequentialANDSameAddressUsed(b *testing.B) {
 			padding, txPoolSizes[i], numInputs, numOutputs)
 
 		b.Run(name+"/0-Before", func(b *testing.B) {
+			txPoolSize := uint32(txPoolSizes[i])
 			benchmarkSequentialBroadcast(
-				b, uint32(txPoolSizes[i]), useSameAddress,
-				false,
+				b, broadcastBenchmarkConfig{
+					txPoolSize:         txPoolSize,
+					walletOutputsPerTx: walletOutputsPerTx,
+					useNewAPI:          false,
+					sameAddress:        useSameAddress,
+				},
 			)
 		})
 
 		b.Run(name+"/1-After", func(b *testing.B) {
+			txPoolSize := uint32(txPoolSizes[i])
 			benchmarkSequentialBroadcast(
-				b, uint32(txPoolSizes[i]), useSameAddress, true,
+				b, broadcastBenchmarkConfig{
+					txPoolSize:         txPoolSize,
+					walletOutputsPerTx: walletOutputsPerTx,
+					useNewAPI:          true,
+					sameAddress:        useSameAddress,
+				},
 			)
 		})
 	}
@@ -196,6 +245,12 @@ func BenchmarkBroadcastAPISequentialANDUniqueAddressesUsed(b *testing.B) {
 		// addresses (false). This deliberately enables comprehensive
 		// benchmarking unique/duplicate addrs codepaths.
 		useSameAddress = false
+
+		// walletOutputsPerTx is held constant at 1 to isolate and
+		// purely measure the impact of sequential broadcast with
+		// varying txPoolSize and address reuse pattern without
+		// confounding from output count variation.
+		walletOutputsPerTx = 1
 	)
 
 	var (
@@ -221,15 +276,26 @@ func BenchmarkBroadcastAPISequentialANDUniqueAddressesUsed(b *testing.B) {
 			padding, txPoolSizes[i], numInputs, numOutputs)
 
 		b.Run(name+"/0-Before", func(b *testing.B) {
+			txPoolSize := uint32(txPoolSizes[i])
 			benchmarkSequentialBroadcast(
-				b, uint32(txPoolSizes[i]), useSameAddress,
-				false,
+				b, broadcastBenchmarkConfig{
+					txPoolSize:         txPoolSize,
+					walletOutputsPerTx: walletOutputsPerTx,
+					useNewAPI:          false,
+					sameAddress:        useSameAddress,
+				},
 			)
 		})
 
 		b.Run(name+"/1-After", func(b *testing.B) {
+			txPoolSize := uint32(txPoolSizes[i])
 			benchmarkSequentialBroadcast(
-				b, uint32(txPoolSizes[i]), useSameAddress, true,
+				b, broadcastBenchmarkConfig{
+					txPoolSize:         txPoolSize,
+					walletOutputsPerTx: walletOutputsPerTx,
+					useNewAPI:          true,
+					sameAddress:        useSameAddress,
+				},
 			)
 		})
 	}

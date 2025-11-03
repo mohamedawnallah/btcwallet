@@ -25,6 +25,25 @@ import (
 
 var errAccountNotFound = errors.New("account not found")
 
+// broadcastBenchmarkConfig encapsulates parameters for broadcast API
+// benchmarks.
+type broadcastBenchmarkConfig struct {
+	// txPoolSize is the number of transactions to broadcast.
+	txPoolSize uint32
+
+	// walletOutputsPerTx is the number of wallet-owned outputs per
+	// transaction.
+	walletOutputsPerTx int
+
+	// useNewAPI indicates whether to test the optimized API (true) or the
+	// baseline implementation (false).
+	useNewAPI bool
+
+	// sameAddress indicates whether all wallet-owned outputs should pay to
+	// the same address (true) or use unique addresses (false).
+	sameAddress bool
+}
+
 // growthFunc defines how a benchmark parameter should scale with iteration
 // index. It takes an iteration index i (0-based) and returns the parameter
 // value for that iteration. This allows flexible configuration of benchmark
@@ -100,7 +119,7 @@ type benchmarkWallet struct {
 // and returns the wallet along with the outpoints of all created UTXOs. If
 // config.miner is provided, the wallet is connected to the btcd node via RPC.
 func setupBenchmarkWallet(tb testing.TB,
-	config benchmarkWalletConfig) *benchmarkWallet {
+	cfg benchmarkWalletConfig) *benchmarkWallet {
 
 	tb.Helper()
 
@@ -114,8 +133,8 @@ func setupBenchmarkWallet(tb testing.TB,
 	var chainConn *chain.RPCClient
 
 	// If miner provided, connect wallet to btcd.
-	if config.miner != nil {
-		rpcConfig := config.miner.RPCConfig()
+	if cfg.miner != nil {
+		rpcConfig := cfg.miner.RPCConfig()
 		clientConfig := &chain.RPCClientConfig{
 			Conn:              &rpcConfig,
 			Chain:             &chaincfg.RegressionNetParams,
@@ -143,11 +162,10 @@ func setupBenchmarkWallet(tb testing.TB,
 	}
 
 	addresses := createTestAccounts(
-		tb, w, config.scopes, config.numAccounts,
-		config.numAddresses,
+		tb, w, cfg.scopes, cfg.numAccounts, cfg.numAddresses,
 	)
 
-	outpoints := createTestUTXOs(tb, w, addresses, config.numUTXOs)
+	outpoints := createTestUTXOs(tb, w, addresses, cfg.numUTXOs)
 
 	// Sync wallet to the block height where UTXOs were created.
 	setSyncedToHeight(tb, w, 1)
@@ -558,8 +576,9 @@ func setupMiner(b *testing.B, netParams *chaincfg.Params,
 //
 //nolint:cyclop
 func createBenchmarkTransactions(b *testing.B, miner *rpctest.Harness,
-	w *Wallet, keyScope waddrmgr.KeyScope, txPoolSize,
-	blocksToMine uint32, sameAddress bool) []*wire.MsgTx {
+	w *Wallet, keyScope waddrmgr.KeyScope, txPoolSize uint32,
+	walletOutputsPerTx int, blocksToMine uint32,
+	sameAddress bool) []*wire.MsgTx {
 
 	b.Helper()
 
@@ -623,8 +642,8 @@ func createBenchmarkTransactions(b *testing.B, miner *rpctest.Harness,
 	)
 
 	// Pass 2: Create final transactions from miner's split UTXOs to wallet.
-	b.Logf("Pass 2: Creating %d transactions from miner to wallet",
-		txPoolSize)
+	b.Logf("Pass 2: Creating %d transactions from miner to wallet, "+
+		"each with %d outputs", txPoolSize, walletOutputsPerTx)
 
 	txs := make([]*wire.MsgTx, txPoolSize)
 
@@ -639,16 +658,18 @@ func createBenchmarkTransactions(b *testing.B, miner *rpctest.Harness,
 		)
 		require.NoError(b, err)
 
-		for i := range txPoolSize {
-			pkScript, err := txscript.PayToAddrScript(addr)
-			require.NoError(b, err)
+		pkScript, err := txscript.PayToAddrScript(addr)
+		require.NoError(b, err)
 
-			// Create transaction from miner to wallet address.
-			outputs := []*wire.TxOut{
-				{
+		for i := range txPoolSize {
+			// Create transaction with multiple outputs all paying
+			// to the SAME wallet address.
+			outputs := make([]*wire.TxOut, walletOutputsPerTx)
+			for j := range walletOutputsPerTx {
+				outputs[j] = &wire.TxOut{
 					Value:    finalOutputAmt,
 					PkScript: pkScript,
-				},
+				}
 			}
 
 			tx, err := miner.CreateTransaction(
@@ -659,26 +680,28 @@ func createBenchmarkTransactions(b *testing.B, miner *rpctest.Harness,
 			txs[i] = tx
 		}
 
-		b.Logf("Created %d unbroadcast transactions from miner to "+
-			"wallet address %s", txPoolSize, addr.String())
+		b.Logf("Created %d unbroadcast transactions, each with %d "+
+			"outputs to wallet address %s (total %d outputs)",
+			txPoolSize, walletOutputsPerTx, addr.String(),
+			txPoolSize*uint32(walletOutputsPerTx))
 	} else {
-		// Generate a unique address for each transaction.
+		// Generate unique addresses for each output.
 		for i := range txPoolSize {
-			addr, err := w.NewAddressDeprecated(
-				waddrmgr.DefaultAccountNum, keyScope,
-			)
-			require.NoError(b, err)
+			outputs := make([]*wire.TxOut, walletOutputsPerTx)
 
-			pkScript, err := txscript.PayToAddrScript(addr)
-			require.NoError(b, err)
+			for j := range walletOutputsPerTx {
+				addr, err := w.NewAddressDeprecated(
+					waddrmgr.DefaultAccountNum, keyScope,
+				)
+				require.NoError(b, err)
 
-			// Create transaction from miner to unique wallet
-			// address.
-			outputs := []*wire.TxOut{
-				{
+				pkScript, err := txscript.PayToAddrScript(addr)
+				require.NoError(b, err)
+
+				outputs[j] = &wire.TxOut{
 					Value:    finalOutputAmt,
 					PkScript: pkScript,
-				},
+				}
 			}
 
 			tx, err := miner.CreateTransaction(
@@ -689,8 +712,10 @@ func createBenchmarkTransactions(b *testing.B, miner *rpctest.Harness,
 			txs[i] = tx
 		}
 
-		b.Logf("Created %d unbroadcast transactions from miner to "+
-			"%d unique wallet addresses", txPoolSize, txPoolSize)
+		b.Logf("Created %d unbroadcast transactions with %d unique "+
+			"addresses each (total %d addresses)", txPoolSize,
+			walletOutputsPerTx,
+			txPoolSize*uint32(walletOutputsPerTx))
 	}
 
 	return txs
@@ -758,10 +783,8 @@ func selectBenchmarkTransactions(pool []*wire.MsgTx, candidatesCount,
 
 // benchmarkConcurrentBroadcast runs the core benchmark logic for concurrent
 // broadcast operations.
-//
-//nolint:unparam
 func benchmarkConcurrentBroadcast(b *testing.B, numConcurrentTxs int,
-	txPoolSize uint32, useNewAPI, sameAddress bool) {
+	cfg broadcastBenchmarkConfig) {
 
 	b.Helper()
 
@@ -777,7 +800,8 @@ func benchmarkConcurrentBroadcast(b *testing.B, numConcurrentTxs int,
 
 	// Create a pool of transactions using the miner's funds.
 	txPool := createBenchmarkTransactions(
-		b, miner, w, keyScope, txPoolSize, 0, sameAddress,
+		b, miner, w, keyScope, cfg.txPoolSize,
+		cfg.walletOutputsPerTx, 0, cfg.sameAddress,
 	)
 
 	b.Logf("Broadcasting %d concurrent transactions per benchmark "+
@@ -789,7 +813,7 @@ func benchmarkConcurrentBroadcast(b *testing.B, numConcurrentTxs int,
 	for i := 0; b.Loop(); i++ {
 		txs := selectBenchmarkTransactions(txPool, numConcurrentTxs, i)
 
-		if useNewAPI {
+		if cfg.useNewAPI {
 			broadcastConcurrentNewAPI(b, w, txs)
 		} else {
 			broadcastConcurrentOldAPI(b, w, txs)
@@ -879,9 +903,7 @@ func broadcastConcurrentOldAPI(b *testing.B, w *Wallet, txs []*wire.MsgTx) {
 
 // benchmarkSequentialBroadcast runs the core sequential benchmark logic,
 // parameterized by txPoolSize and whether the same address is used.
-func benchmarkSequentialBroadcast(b *testing.B, txPoolSize uint32,
-	sameAddress bool, useNewAPI bool) {
-
+func benchmarkSequentialBroadcast(b *testing.B, cfg broadcastBenchmarkConfig) {
 	b.Helper()
 
 	keyScope := waddrmgr.KeyScopeBIP0084
@@ -896,7 +918,8 @@ func benchmarkSequentialBroadcast(b *testing.B, txPoolSize uint32,
 
 	// Create transaction pool.
 	txPool := createBenchmarkTransactions(
-		b, miner, w, keyScope, txPoolSize, 0, sameAddress,
+		b, miner, w, keyScope, cfg.txPoolSize, cfg.walletOutputsPerTx,
+		0, cfg.sameAddress,
 	)
 
 	b.ReportAllocs()
@@ -905,7 +928,7 @@ func benchmarkSequentialBroadcast(b *testing.B, txPoolSize uint32,
 	for i := 0; b.Loop(); i++ {
 		tx := txPool[i%len(txPool)]
 
-		if useNewAPI {
+		if cfg.useNewAPI {
 			err := w.Broadcast(b.Context(), tx, "sequential-after")
 			if err != nil {
 				b.Logf("Broadcast error: %v", err)
