@@ -300,3 +300,55 @@ func BenchmarkBroadcastAPISequentialANDUniqueAddressesUsed(b *testing.B) {
 		})
 	}
 }
+
+// BenchmarkBroadcastAPIMultiOutputSameAddress benchmarks the optimization's
+// maximum impact when transactions have many wallet-owned outputs all paying
+// to the same wallet address.
+func BenchmarkBroadcastAPIMultiOutputSameAddress(b *testing.B) {
+	const (
+		// txPoolSize is small because each transaction is expensive
+		// to create with many wallet-owned outputs.
+		txPoolSize = 100
+
+		// useSameAddress determines whether all transactions in the
+		// pool send to the same wallet address (true) or to unique
+		// addresses (false). This deliberately enables comprehensive
+		// benchmarking unique/duplicate addrs codepaths.
+		useSameAddress = true
+	)
+
+	var (
+		walletOutputCounts = mapRange(0, 14, exponentialGrowth)
+
+		padding = decimalWidth(
+			walletOutputCounts[len(walletOutputCounts)-1],
+		)
+	)
+
+	for _, walletOutputsPerTx := range walletOutputCounts {
+		name := fmt.Sprintf("TxPool-%d-WalletOutputsPerTx-%0*d",
+			txPoolSize, padding, walletOutputsPerTx)
+
+		b.Run(name+"/0-Before", func(b *testing.B) {
+			benchmarkSequentialBroadcast(
+				b, broadcastBenchmarkConfig{
+					txPoolSize:         txPoolSize,
+					walletOutputsPerTx: walletOutputsPerTx,
+					useNewAPI:          false,
+					sameAddress:        useSameAddress,
+				},
+			)
+		})
+
+		b.Run(name+"/1-After", func(b *testing.B) {
+			benchmarkSequentialBroadcast(
+				b, broadcastBenchmarkConfig{
+					txPoolSize:         txPoolSize,
+					walletOutputsPerTx: walletOutputsPerTx,
+					useNewAPI:          true,
+					sameAddress:        useSameAddress,
+				},
+			)
+		})
+	}
+}
