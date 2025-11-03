@@ -42,6 +42,12 @@ type broadcastBenchmarkConfig struct {
 	// sameAddress indicates whether all wallet-owned outputs should pay to
 	// the same address (true) or use unique addresses (false).
 	sameAddress bool
+
+	// sparseOwnership indicates whether only the last output is
+	// wallet-owned (true) or all outputs are wallet-owned (false). This is
+	// useful for benchmarking the filterOwnedAddresses optimization with
+	// many non-owned outputs.
+	sparseOwnership bool
 }
 
 // growthFunc defines how a benchmark parameter should scale with iteration
@@ -578,7 +584,7 @@ func setupMiner(b *testing.B, netParams *chaincfg.Params,
 func createBenchmarkTransactions(b *testing.B, miner *rpctest.Harness,
 	w *Wallet, keyScope waddrmgr.KeyScope, txPoolSize uint32,
 	walletOutputsPerTx int, blocksToMine uint32,
-	sameAddress bool) []*wire.MsgTx {
+	sameAddress bool, sparseOwnership bool) []*wire.MsgTx {
 
 	b.Helper()
 
@@ -661,14 +667,33 @@ func createBenchmarkTransactions(b *testing.B, miner *rpctest.Harness,
 		pkScript, err := txscript.PayToAddrScript(addr)
 		require.NoError(b, err)
 
+		// If sparse ownership, get miner address for non-owned outputs.
+		var minerPkScript []byte
+		if sparseOwnership {
+			minerAddr, err := miner.NewAddress()
+			require.NoError(b, err)
+
+			minerPkScript, err = txscript.PayToAddrScript(minerAddr)
+			require.NoError(b, err)
+		}
+
 		for i := range txPoolSize {
-			// Create transaction with multiple outputs all paying
-			// to the SAME wallet address.
 			outputs := make([]*wire.TxOut, walletOutputsPerTx)
 			for j := range walletOutputsPerTx {
+				isLastOutput := j == walletOutputsPerTx-1
+				isWalletOwned := !sparseOwnership ||
+					isLastOutput
+
+				outputPkScript := pkScript
+				if !isWalletOwned {
+					// All outputs except the last go to
+					// miner.
+					outputPkScript = minerPkScript
+				}
+
 				outputs[j] = &wire.TxOut{
 					Value:    finalOutputAmt,
-					PkScript: pkScript,
+					PkScript: outputPkScript,
 				}
 			}
 
@@ -680,10 +705,20 @@ func createBenchmarkTransactions(b *testing.B, miner *rpctest.Harness,
 			txs[i] = tx
 		}
 
-		b.Logf("Created %d unbroadcast transactions, each with %d "+
-			"outputs to wallet address %s (total %d outputs)",
-			txPoolSize, walletOutputsPerTx, addr.String(),
-			txPoolSize*uint32(walletOutputsPerTx))
+		if sparseOwnership {
+			b.Logf("Created %d unbroadcast transactions, each "+
+				"with %d outputs (%d to miner, 1 to "+
+				"wallet %s) (total %d outputs)", txPoolSize,
+				walletOutputsPerTx, walletOutputsPerTx-1,
+				addr.String(),
+				txPoolSize*uint32(walletOutputsPerTx))
+		} else {
+			b.Logf("Created %d unbroadcast transactions, each "+
+				"with %d outputs to wallet address %s "+
+				"(total %d outputs)", txPoolSize,
+				walletOutputsPerTx, addr.String(),
+				txPoolSize*uint32(walletOutputsPerTx))
+		}
 	} else {
 		// Generate unique addresses for each output.
 		for i := range txPoolSize {
@@ -801,7 +836,7 @@ func benchmarkConcurrentBroadcast(b *testing.B, numConcurrentTxs int,
 	// Create a pool of transactions using the miner's funds.
 	txPool := createBenchmarkTransactions(
 		b, miner, w, keyScope, cfg.txPoolSize,
-		cfg.walletOutputsPerTx, 0, cfg.sameAddress,
+		cfg.walletOutputsPerTx, 0, cfg.sameAddress, cfg.sparseOwnership,
 	)
 
 	b.Logf("Broadcasting %d concurrent transactions per benchmark "+
@@ -919,7 +954,7 @@ func benchmarkSequentialBroadcast(b *testing.B, cfg broadcastBenchmarkConfig) {
 	// Create transaction pool.
 	txPool := createBenchmarkTransactions(
 		b, miner, w, keyScope, cfg.txPoolSize, cfg.walletOutputsPerTx,
-		0, cfg.sameAddress,
+		0, cfg.sameAddress, cfg.sparseOwnership,
 	)
 
 	b.ReportAllocs()

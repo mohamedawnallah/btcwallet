@@ -38,6 +38,13 @@ func BenchmarkBroadcastAPIConcurrentANDSameAddressUsed(b *testing.B) {
 		// varying concurrency level and address reuse pattern without
 		// confounding from output count variation.
 		walletOutputsPerTx = 1
+
+		// useSparseOwnership determines whether wallet-owned outputs
+		// are placed sparsely throughout the transaction outputs.
+		// Setting this to false since there is only one output per
+		// transaction, avoiding confounding from sparse ownership
+		// patterns.
+		useSparseOwnership = false
 	)
 
 	var (
@@ -63,6 +70,7 @@ func BenchmarkBroadcastAPIConcurrentANDSameAddressUsed(b *testing.B) {
 					walletOutputsPerTx: walletOutputsPerTx,
 					useNewAPI:          false,
 					sameAddress:        useSameAddress,
+					sparseOwnership:    useSparseOwnership,
 				},
 			)
 		})
@@ -75,6 +83,7 @@ func BenchmarkBroadcastAPIConcurrentANDSameAddressUsed(b *testing.B) {
 					walletOutputsPerTx: walletOutputsPerTx,
 					useNewAPI:          true,
 					sameAddress:        useSameAddress,
+					sparseOwnership:    useSparseOwnership,
 				},
 			)
 		})
@@ -110,6 +119,13 @@ func BenchmarkBroadcastAPIConcurrentANDUniqueAddressesUsed(b *testing.B) {
 		// varying concurrency level and address reuse pattern without
 		// confounding from output count variation.
 		walletOutputsPerTx = 1
+
+		// useSparseOwnership determines whether wallet-owned outputs
+		// are placed sparsely throughout the transaction outputs.
+		// Setting this to false since there is only one output per
+		// transaction, avoiding confounding from sparse ownership
+		// patterns.
+		useSparseOwnership = false
 	)
 
 	var (
@@ -135,6 +151,7 @@ func BenchmarkBroadcastAPIConcurrentANDUniqueAddressesUsed(b *testing.B) {
 					walletOutputsPerTx: walletOutputsPerTx,
 					useNewAPI:          false,
 					sameAddress:        useSameAddress,
+					sparseOwnership:    useSparseOwnership,
 				},
 			)
 		})
@@ -147,6 +164,7 @@ func BenchmarkBroadcastAPIConcurrentANDUniqueAddressesUsed(b *testing.B) {
 					walletOutputsPerTx: walletOutputsPerTx,
 					useNewAPI:          true,
 					sameAddress:        useSameAddress,
+					sparseOwnership:    useSparseOwnership,
 				},
 			)
 		})
@@ -177,6 +195,13 @@ func BenchmarkBroadcastAPISequentialANDSameAddressUsed(b *testing.B) {
 		// varying txPoolSize and address reuse pattern without
 		// confounding from output count variation.
 		walletOutputsPerTx = 1
+
+		// useSparseOwnership determines whether wallet-owned outputs
+		// are placed sparsely throughout the transaction outputs.
+		// Setting this to false since there is only one output per
+		// transaction, avoiding confounding from sparse ownership
+		// patterns.
+		useSparseOwnership = false
 	)
 
 	var (
@@ -209,6 +234,7 @@ func BenchmarkBroadcastAPISequentialANDSameAddressUsed(b *testing.B) {
 					walletOutputsPerTx: walletOutputsPerTx,
 					useNewAPI:          false,
 					sameAddress:        useSameAddress,
+					sparseOwnership:    useSparseOwnership,
 				},
 			)
 		})
@@ -221,6 +247,7 @@ func BenchmarkBroadcastAPISequentialANDSameAddressUsed(b *testing.B) {
 					walletOutputsPerTx: walletOutputsPerTx,
 					useNewAPI:          true,
 					sameAddress:        useSameAddress,
+					sparseOwnership:    useSparseOwnership,
 				},
 			)
 		})
@@ -251,6 +278,13 @@ func BenchmarkBroadcastAPISequentialANDUniqueAddressesUsed(b *testing.B) {
 		// varying txPoolSize and address reuse pattern without
 		// confounding from output count variation.
 		walletOutputsPerTx = 1
+
+		// useSparseOwnership determines whether wallet-owned outputs
+		// are placed sparsely throughout the transaction outputs.
+		// Setting this to false since there is only one output per
+		// transaction, avoiding confounding from sparse ownership
+		// patterns.
+		useSparseOwnership = false
 	)
 
 	var (
@@ -283,6 +317,7 @@ func BenchmarkBroadcastAPISequentialANDUniqueAddressesUsed(b *testing.B) {
 					walletOutputsPerTx: walletOutputsPerTx,
 					useNewAPI:          false,
 					sameAddress:        useSameAddress,
+					sparseOwnership:    useSparseOwnership,
 				},
 			)
 		})
@@ -295,6 +330,7 @@ func BenchmarkBroadcastAPISequentialANDUniqueAddressesUsed(b *testing.B) {
 					walletOutputsPerTx: walletOutputsPerTx,
 					useNewAPI:          true,
 					sameAddress:        useSameAddress,
+					sparseOwnership:    useSparseOwnership,
 				},
 			)
 		})
@@ -315,6 +351,13 @@ func BenchmarkBroadcastAPIMultiOutputSameAddress(b *testing.B) {
 		// addresses (false). This deliberately enables comprehensive
 		// benchmarking unique/duplicate addrs codepaths.
 		useSameAddress = true
+
+		// useSparseOwnership determines whether wallet-owned outputs
+		// are placed sparsely throughout the transaction outputs.
+		// Setting this to false since all outputs are wallet-owned in
+		// this benchmark, avoiding confounding from sparse ownership
+		// patterns.
+		useSparseOwnership = false
 	)
 
 	var (
@@ -336,6 +379,7 @@ func BenchmarkBroadcastAPIMultiOutputSameAddress(b *testing.B) {
 					walletOutputsPerTx: walletOutputsPerTx,
 					useNewAPI:          false,
 					sameAddress:        useSameAddress,
+					sparseOwnership:    useSparseOwnership,
 				},
 			)
 		})
@@ -347,6 +391,7 @@ func BenchmarkBroadcastAPIMultiOutputSameAddress(b *testing.B) {
 					walletOutputsPerTx: walletOutputsPerTx,
 					useNewAPI:          true,
 					sameAddress:        useSameAddress,
+					sparseOwnership:    useSparseOwnership,
 				},
 			)
 		})
