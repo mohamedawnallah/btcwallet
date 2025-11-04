@@ -397,3 +397,71 @@ func BenchmarkBroadcastAPIMultiOutputSameAddress(b *testing.B) {
 		})
 	}
 }
+
+// BenchmarkBroadcastAPIMultiOutputLastWalletOwnedAddress benchmarks the sparse
+// ownership scenario where transactions have many outputs but only the last one
+// is wallet-owned. This demonstrates the performance benefit of the
+// filterOwnedAddresses optimization that captures output indices during
+// deduplication, avoiding a second pass over all transaction outputs.
+func BenchmarkBroadcastAPIMultiOutputLastWalletOwnedAddress(b *testing.B) {
+	const (
+		// txPoolSize is small because each transaction is expensive
+		// to create with many outputs.
+		txPoolSize = 100
+
+		// useSameAddress determines whether all transactions in the
+		// pool send to the same wallet address (true) or to unique
+		// addresses (false). For this benchmark, we use the same
+		// address to isolate the deduplication optimization.
+		useSameAddress = true
+
+		// useSparseOwnership determines whether wallet-owned outputs
+		// are placed sparsely throughout the transaction outputs.
+		// Setting this to true simulates a realistic scenario where
+		// wallet outputs are not clustered, allowing us to benchmark
+		// the early termination optimization when the last output is
+		// wallet-owned.
+		useSparseOwnership = true
+	)
+
+	var (
+		// NOTE: Increasing wallet output counts over 4096 would cause
+		// the sigop cost to be too high. Ideally, this is better to be
+		// handled programmatically. So capping it to 2^12 for more
+		// representative benchmarks.
+		walletOutputCounts = mapRange(0, 12, exponentialGrowth)
+
+		padding = decimalWidth(
+			walletOutputCounts[len(walletOutputCounts)-1],
+		)
+	)
+
+	for _, walletOutputsPerTx := range walletOutputCounts {
+		name := fmt.Sprintf("TxPool-%d-WalletOutputsPerTx-%0*d",
+			txPoolSize, padding, walletOutputsPerTx)
+
+		b.Run(name+"/0-Before", func(b *testing.B) {
+			benchmarkSequentialBroadcast(
+				b, broadcastBenchmarkConfig{
+					txPoolSize:         txPoolSize,
+					walletOutputsPerTx: walletOutputsPerTx,
+					useNewAPI:          false,
+					sameAddress:        useSameAddress,
+					sparseOwnership:    useSparseOwnership,
+				},
+			)
+		})
+
+		b.Run(name+"/1-After", func(b *testing.B) {
+			benchmarkSequentialBroadcast(
+				b, broadcastBenchmarkConfig{
+					txPoolSize:         txPoolSize,
+					walletOutputsPerTx: walletOutputsPerTx,
+					useNewAPI:          true,
+					sameAddress:        useSameAddress,
+					sparseOwnership:    useSparseOwnership,
+				},
+			)
+		})
+	}
+}
