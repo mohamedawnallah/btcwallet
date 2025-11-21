@@ -44,30 +44,14 @@ jobs:
         run: |
           git fetch origin ${{ github.base_ref }}
           git checkout origin/${{ github.base_ref }}
-
-          # Get list of all benchmark functions
-          BENCHMARKS=$(go test -list 'Benchmark.*' ./wallet 2>/dev/null | grep '^Benchmark')
-
-          # Run up to 3 benchmarks in parallel
-          echo "$BENCHMARKS" | parallel -j 3 --line-buffer \
-            'go test -tags="dev error" -test.timeout=20m -test.benchmem -test.bench=^{}$ -test.run=NONE github.com/btcsuite/btcwallet/wallet' \
-            > base-bench.txt 2>&1
-
+          make unit-bench pkg=wallet  benchmem=1 log=error 2>&1 | tee base-bench.txt
           echo "Base branch benchmarks completed"
 
       - name: Run benchmarks on PR branch
         run: |
           git fetch origin ${{ github.head_ref }}
           git checkout origin/${{ github.head_ref }}
-
-          # Get list of all benchmark functions
-          BENCHMARKS=$(go test -list 'Benchmark.*' ./wallet 2>/dev/null | grep '^Benchmark')
-
-          # Run up to 3 benchmarks in parallel
-          echo "$BENCHMARKS" | parallel -j 3 --line-buffer \
-            'go test -tags="dev error" -test.timeout=20m -test.benchmem -test.bench=^{}$ -test.run=NONE github.com/btcsuite/btcwallet/wallet' \
-            > pr-bench.txt 2>&1
-
+          make unit-bench pkg=wallet  benchmem=1 log=error 2>&1 | tee pr-bench.txt
           echo "PR branch benchmarks completed"
 
       - name: Compare benchmarks with benchstat
