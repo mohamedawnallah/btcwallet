@@ -55,6 +55,8 @@ func BenchmarkListAccountsByScopeAPI(b *testing.B) {
 			accountGrowthPadding, accountGrowth[i],
 			utxoGrowthPadding, utxoGrowth[i])
 
+		fmt.Printf("REAL diff")
+
 		b.Run(name+"/0-Before", func(b *testing.B) {
 			w := setupBenchmarkWallet(
 				b, benchmarkWalletConfig{
