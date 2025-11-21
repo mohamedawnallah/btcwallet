@@ -63,7 +63,7 @@ func BenchmarkGetUtxoAPI(b *testing.B) {
 			addressGrowthPadding, addressGrowth[i],
 			utxoGrowthPadding, utxoGrowth[i])
 
-		b.Run(name+"/0-Before", func(b *testing.B) {
+		b.Run(name, func(b *testing.B) {
 			bw := setupBenchmarkWallet(
 				b, benchmarkWalletConfig{
 					scopes:       scopes,
@@ -76,39 +76,29 @@ func BenchmarkGetUtxoAPI(b *testing.B) {
 			outpoints := txsToOutpoints(bw.confirmedTxs)
 			testOutpoint := getTestUtxoOutpoint(outpoints)
 
-			b.ReportAllocs()
-			b.ResetTimer()
+			b.Run("0-Before", func(b *testing.B) {
+				b.ReportAllocs()
+				b.ResetTimer()
 
-			for b.Loop() {
-				_, err := getUtxoDeprecated(
-					bw.Wallet, testOutpoint,
-				)
-				require.NoError(b, err)
-			}
-		})
+				for b.Loop() {
+					_, err := getUtxoDeprecated(
+						bw.Wallet, testOutpoint,
+					)
+					require.NoError(b, err)
+				}
+			})
 
-		b.Run(name+"/1-After", func(b *testing.B) {
-			bw := setupBenchmarkWallet(
-				b, benchmarkWalletConfig{
-					scopes:       scopes,
-					numAccounts:  accountGrowth[i],
-					numAddresses: addressGrowth[i],
-					numWalletTxs: utxoGrowth[i],
-				},
-			)
+			b.Run("1-After", func(b *testing.B) {
+				b.ReportAllocs()
+				b.ResetTimer()
 
-			outpoints := txsToOutpoints(bw.confirmedTxs)
-			testOutpoint := getTestUtxoOutpoint(outpoints)
-
-			b.ReportAllocs()
-			b.ResetTimer()
-
-			for b.Loop() {
-				_, err := bw.GetUtxo(
-					b.Context(), testOutpoint,
-				)
-				require.NoError(b, err)
-			}
+				for b.Loop() {
+					_, err := bw.GetUtxo(
+						b.Context(), testOutpoint,
+					)
+					require.NoError(b, err)
+				}
+			})
 		})
 	}
 }
@@ -171,7 +161,7 @@ func BenchmarkListUnspentAPI(b *testing.B) {
 			addressGrowthPadding, addressGrowth[i],
 			utxoGrowthPadding, utxoGrowth[i])
 
-		b.Run(name+"/0-Before", func(b *testing.B) {
+		b.Run(name, func(b *testing.B) {
 			bw := setupBenchmarkWallet(
 				b, benchmarkWalletConfig{
 					scopes:       scopes,
@@ -181,41 +171,34 @@ func BenchmarkListUnspentAPI(b *testing.B) {
 				},
 			)
 
-			b.ReportAllocs()
-			b.ResetTimer()
+			b.Run("0-Before", func(b *testing.B) {
+				b.ReportAllocs()
+				b.ResetTimer()
 
-			for b.Loop() {
-				_, err := bw.ListUnspentDeprecated(
-					int32(minConfs), int32(maxConfs),
-					accountName,
-				)
-				require.NoError(b, err)
-			}
-		})
+				for b.Loop() {
+					_, err := bw.ListUnspentDeprecated(
+						int32(minConfs), int32(maxConfs),
+						accountName,
+					)
+					require.NoError(b, err)
+				}
+			})
 
-		b.Run(name+"/1-After", func(b *testing.B) {
-			bw := setupBenchmarkWallet(
-				b, benchmarkWalletConfig{
-					scopes:       scopes,
-					numAccounts:  accountGrowth[i],
-					numAddresses: addressGrowth[i],
-					numWalletTxs: utxoGrowth[i],
-				},
-			)
+			b.Run("1-After", func(b *testing.B) {
+				b.ReportAllocs()
+				b.ResetTimer()
 
-			b.ReportAllocs()
-			b.ResetTimer()
-
-			for b.Loop() {
-				_, err := bw.ListUnspent(
-					b.Context(), UtxoQuery{
-						Account:  accountName,
-						MinConfs: int32(minConfs),
-						MaxConfs: int32(maxConfs),
-					},
-				)
-				require.NoError(b, err)
-			}
+				for b.Loop() {
+					_, err := bw.ListUnspent(
+						b.Context(), UtxoQuery{
+							Account:  accountName,
+							MinConfs: int32(minConfs),
+							MaxConfs: int32(maxConfs),
+						},
+					)
+					require.NoError(b, err)
+				}
+			})
 		})
 	}
 }
@@ -276,7 +259,7 @@ func BenchmarkLeaseOutputAPI(b *testing.B) {
 			addressGrowthPadding, addressGrowth[i],
 			utxoGrowthPadding, utxoGrowth[i])
 
-		b.Run(name+"/0-Before", func(b *testing.B) {
+		b.Run(name, func(b *testing.B) {
 			bw := setupBenchmarkWallet(
 				b, benchmarkWalletConfig{
 					scopes:       scopes,
@@ -289,40 +272,30 @@ func BenchmarkLeaseOutputAPI(b *testing.B) {
 			outpoints := txsToOutpoints(bw.confirmedTxs)
 			testOutpoint := getTestUtxoOutpoint(outpoints)
 
-			b.ReportAllocs()
-			b.ResetTimer()
+			b.Run("0-Before", func(b *testing.B) {
+				b.ReportAllocs()
+				b.ResetTimer()
 
-			for b.Loop() {
-				_, err := bw.LeaseOutputDeprecated(
-					lockID, testOutpoint, duration,
-				)
-				require.NoError(b, err)
-			}
-		})
+				for b.Loop() {
+					_, err := bw.LeaseOutputDeprecated(
+						lockID, testOutpoint, duration,
+					)
+					require.NoError(b, err)
+				}
+			})
 
-		b.Run(name+"/1-After", func(b *testing.B) {
-			bw := setupBenchmarkWallet(
-				b, benchmarkWalletConfig{
-					scopes:       scopes,
-					numAccounts:  accountGrowth[i],
-					numAddresses: addressGrowth[i],
-					numWalletTxs: utxoGrowth[i],
-				},
-			)
+			b.Run("1-After", func(b *testing.B) {
+				b.ReportAllocs()
+				b.ResetTimer()
 
-			outpoints := txsToOutpoints(bw.confirmedTxs)
-			testOutpoint := getTestUtxoOutpoint(outpoints)
-
-			b.ReportAllocs()
-			b.ResetTimer()
-
-			for b.Loop() {
-				_, err := bw.LeaseOutput(
-					b.Context(), lockID, testOutpoint,
-					duration,
-				)
-				require.NoError(b, err)
-			}
+				for b.Loop() {
+					_, err := bw.LeaseOutput(
+						b.Context(), lockID, testOutpoint,
+						duration,
+					)
+					require.NoError(b, err)
+				}
+			})
 		})
 	}
 }
@@ -384,7 +357,7 @@ func BenchmarkReleaseOutputAPI(b *testing.B) {
 			addressGrowthPadding, addressGrowth[i],
 			utxoGrowthPadding, utxoGrowth[i])
 
-		b.Run(name+"/0-Before", func(b *testing.B) {
+		b.Run(name, func(b *testing.B) {
 			bw := setupBenchmarkWallet(
 				b, benchmarkWalletConfig{
 					scopes:       scopes,
@@ -397,50 +370,40 @@ func BenchmarkReleaseOutputAPI(b *testing.B) {
 			outpoints := txsToOutpoints(bw.confirmedTxs)
 			testOutpoint := getTestUtxoOutpoint(outpoints)
 
-			b.ReportAllocs()
-			b.ResetTimer()
+			b.Run("0-Before", func(b *testing.B) {
+				b.ReportAllocs()
+				b.ResetTimer()
 
-			for b.Loop() {
-				_, err := bw.LeaseOutputDeprecated(
-					lockID, testOutpoint, duration,
-				)
-				require.NoError(b, err)
+				for b.Loop() {
+					_, err := bw.LeaseOutputDeprecated(
+						lockID, testOutpoint, duration,
+					)
+					require.NoError(b, err)
 
-				err = bw.ReleaseOutputDeprecated(
-					lockID, testOutpoint,
-				)
-				require.NoError(b, err)
-			}
-		})
+					err = bw.ReleaseOutputDeprecated(
+						lockID, testOutpoint,
+					)
+					require.NoError(b, err)
+				}
+			})
 
-		b.Run(name+"/1-After", func(b *testing.B) {
-			bw := setupBenchmarkWallet(
-				b, benchmarkWalletConfig{
-					scopes:       scopes,
-					numAccounts:  accountGrowth[i],
-					numAddresses: addressGrowth[i],
-					numWalletTxs: utxoGrowth[i],
-				},
-			)
+			b.Run("1-After", func(b *testing.B) {
+				b.ReportAllocs()
+				b.ResetTimer()
 
-			outpoints := txsToOutpoints(bw.confirmedTxs)
-			testOutpoint := getTestUtxoOutpoint(outpoints)
+				for b.Loop() {
+					_, err := bw.LeaseOutput(
+						b.Context(), lockID, testOutpoint,
+						duration,
+					)
+					require.NoError(b, err)
 
-			b.ReportAllocs()
-			b.ResetTimer()
-
-			for b.Loop() {
-				_, err := bw.LeaseOutput(
-					b.Context(), lockID, testOutpoint,
-					duration,
-				)
-				require.NoError(b, err)
-
-				err = bw.ReleaseOutput(
-					b.Context(), lockID, testOutpoint,
-				)
-				require.NoError(b, err)
-			}
+					err = bw.ReleaseOutput(
+						b.Context(), lockID, testOutpoint,
+					)
+					require.NoError(b, err)
+				}
+			})
 		})
 	}
 }
@@ -500,7 +463,7 @@ func BenchmarkListLeasedOutputsAPI(b *testing.B) {
 			addressGrowthPadding, addressGrowth[i],
 			utxoGrowthPadding, utxoGrowth[i])
 
-		b.Run(name+"/0-Before", func(b *testing.B) {
+		b.Run(name, func(b *testing.B) {
 			bw := setupBenchmarkWallet(
 				b, benchmarkWalletConfig{
 					scopes:       scopes,
@@ -516,38 +479,25 @@ func BenchmarkListLeasedOutputsAPI(b *testing.B) {
 				duration,
 			)
 
-			b.ReportAllocs()
-			b.ResetTimer()
+			b.Run("0-Before", func(b *testing.B) {
+				b.ReportAllocs()
+				b.ResetTimer()
 
-			for b.Loop() {
-				_, err := bw.ListLeasedOutputsDeprecated()
-				require.NoError(b, err)
-			}
-		})
+				for b.Loop() {
+					_, err := bw.ListLeasedOutputsDeprecated()
+					require.NoError(b, err)
+				}
+			})
 
-		b.Run(name+"/1-After", func(b *testing.B) {
-			bw := setupBenchmarkWallet(
-				b, benchmarkWalletConfig{
-					scopes:       scopes,
-					numAccounts:  accountGrowth[i],
-					numAddresses: addressGrowth[i],
-					numWalletTxs: utxoGrowth[i],
-				},
-			)
+			b.Run("1-After", func(b *testing.B) {
+				b.ReportAllocs()
+				b.ResetTimer()
 
-			// Lease all outputs to maximize the N+1 query impact.
-			leaseAllOutputs(
-				b, bw.Wallet, txsToOutpoints(bw.confirmedTxs),
-				duration,
-			)
-
-			b.ReportAllocs()
-			b.ResetTimer()
-
-			for b.Loop() {
-				_, err := bw.ListLeasedOutputs(b.Context())
-				require.NoError(b, err)
-			}
+				for b.Loop() {
+					_, err := bw.ListLeasedOutputs(b.Context())
+					require.NoError(b, err)
+				}
+			})
 		})
 	}
 }

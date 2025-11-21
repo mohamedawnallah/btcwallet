@@ -55,10 +55,8 @@ func BenchmarkListAccountsByScopeAPI(b *testing.B) {
 			accountGrowthPadding, accountGrowth[i],
 			utxoGrowthPadding, utxoGrowth[i])
 
-		fmt.Printf("REAL diff")
-
-		b.Run(name+"/0-Before", func(b *testing.B) {
-			w := setupBenchmarkWallet(
+		b.Run(name, func(b *testing.B) {
+			bw := setupBenchmarkWallet(
 				b, benchmarkWalletConfig{
 					scopes:       scopes,
 					numAccounts:  accountGrowth[i],
@@ -67,34 +65,27 @@ func BenchmarkListAccountsByScopeAPI(b *testing.B) {
 				},
 			)
 
-			b.ReportAllocs()
-			b.ResetTimer()
+			b.Run("0-Before", func(b *testing.B) {
+				b.ReportAllocs()
+				b.ResetTimer()
 
-			for b.Loop() {
-				_, err := w.Accounts(scopes[0])
-				require.NoError(b, err)
-			}
-		})
+				for b.Loop() {
+					_, err := bw.Accounts(scopes[0])
+					require.NoError(b, err)
+				}
+			})
 
-		b.Run(name+"/1-After", func(b *testing.B) {
-			w := setupBenchmarkWallet(
-				b, benchmarkWalletConfig{
-					scopes:       scopes,
-					numAccounts:  accountGrowth[i],
-					numAddresses: addressGrowth[i],
-					numWalletTxs: utxoGrowth[i],
-				},
-			)
+			b.Run("1-After", func(b *testing.B) {
+				b.ReportAllocs()
+				b.ResetTimer()
 
-			b.ReportAllocs()
-			b.ResetTimer()
-
-			for b.Loop() {
-				_, err := w.ListAccountsByScope(
-					b.Context(), scopes[0],
-				)
-				require.NoError(b, err)
-			}
+				for b.Loop() {
+					_, err := bw.ListAccountsByScope(
+						b.Context(), scopes[0],
+					)
+					require.NoError(b, err)
+				}
+			})
 		})
 	}
 }
@@ -146,7 +137,7 @@ func BenchmarkListAccountsAPI(b *testing.B) {
 			accountGrowthPadding, accountGrowth[i],
 			utxoGrowthPadding, utxoGrowth[i])
 
-		b.Run(name+"/0-Before", func(b *testing.B) {
+		b.Run(name, func(b *testing.B) {
 			bw := setupBenchmarkWallet(
 				b, benchmarkWalletConfig{
 					scopes:       scopes,
@@ -156,32 +147,25 @@ func BenchmarkListAccountsAPI(b *testing.B) {
 				},
 			)
 
-			b.ReportAllocs()
-			b.ResetTimer()
+			b.Run("0-Before", func(b *testing.B) {
+				b.ReportAllocs()
+				b.ResetTimer()
 
-			for b.Loop() {
-				_, err := listAccountsDeprecated(bw.Wallet)
-				require.NoError(b, err)
-			}
-		})
+				for b.Loop() {
+					_, err := listAccountsDeprecated(bw.Wallet)
+					require.NoError(b, err)
+				}
+			})
 
-		b.Run(name+"/1-After", func(b *testing.B) {
-			w := setupBenchmarkWallet(
-				b, benchmarkWalletConfig{
-					scopes:       scopes,
-					numAccounts:  accountGrowth[i],
-					numAddresses: addressGrowth[i],
-					numWalletTxs: utxoGrowth[i],
-				},
-			)
+			b.Run("1-After", func(b *testing.B) {
+				b.ReportAllocs()
+				b.ResetTimer()
 
-			b.ReportAllocs()
-			b.ResetTimer()
-
-			for b.Loop() {
-				_, err := w.ListAccounts(b.Context())
-				require.NoError(b, err)
-			}
+				for b.Loop() {
+					_, err := bw.ListAccounts(b.Context())
+					require.NoError(b, err)
+				}
+			})
 		})
 	}
 }
@@ -235,7 +219,7 @@ func BenchmarkListAccountsByNameAPI(b *testing.B) {
 			accountGrowthPadding, accountGrowth[i],
 			utxoGrowthPadding, utxoGrowth[i])
 
-		b.Run(name+"/0-Before", func(b *testing.B) {
+		b.Run(name, func(b *testing.B) {
 			bw := setupBenchmarkWallet(
 				b, benchmarkWalletConfig{
 					scopes:       scopes,
@@ -245,36 +229,29 @@ func BenchmarkListAccountsByNameAPI(b *testing.B) {
 				},
 			)
 
-			b.ReportAllocs()
-			b.ResetTimer()
+			b.Run("0-Before", func(b *testing.B) {
+				b.ReportAllocs()
+				b.ResetTimer()
 
-			for b.Loop() {
-				_, err := listAccountsByNameDeprecated(
-					bw.Wallet, accountName,
-				)
-				require.NoError(b, err)
-			}
-		})
+				for b.Loop() {
+					_, err := listAccountsByNameDeprecated(
+						bw.Wallet, accountName,
+					)
+					require.NoError(b, err)
+				}
+			})
 
-		b.Run(name+"/1-After", func(b *testing.B) {
-			w := setupBenchmarkWallet(
-				b, benchmarkWalletConfig{
-					scopes:       scopes,
-					numAccounts:  accountGrowth[i],
-					numAddresses: addressGrowth[i],
-					numWalletTxs: utxoGrowth[i],
-				},
-			)
+			b.Run("1-After", func(b *testing.B) {
+				b.ReportAllocs()
+				b.ResetTimer()
 
-			b.ReportAllocs()
-			b.ResetTimer()
-
-			for b.Loop() {
-				_, err := w.ListAccountsByName(
-					b.Context(), accountName,
-				)
-				require.NoError(b, err)
-			}
+				for b.Loop() {
+					_, err := bw.ListAccountsByName(
+						b.Context(), accountName,
+					)
+					require.NoError(b, err)
+				}
+			})
 		})
 	}
 }
@@ -321,7 +298,7 @@ func BenchmarkNewAccountAPI(b *testing.B) {
 		name := fmt.Sprintf("%0*d-Accounts", accountGrowthPadding,
 			accountGrowth[i])
 
-		b.Run(name+"/0-Before", func(b *testing.B) {
+		b.Run(name, func(b *testing.B) {
 			bw := setupBenchmarkWallet(
 				b, benchmarkWalletConfig{
 					scopes:       scopes,
@@ -331,54 +308,47 @@ func BenchmarkNewAccountAPI(b *testing.B) {
 				},
 			)
 
-			b.ReportAllocs()
-			b.ResetTimer()
+			b.Run("0-Before", func(b *testing.B) {
+				b.ReportAllocs()
+				b.ResetTimer()
 
-			count := 0
-			for b.Loop() {
-				// Generate a unique account name for each
-				// iteration to ensure the idempotent nature of
-				// the benchmark.
-				accountName := fmt.Sprintf("new-account-%d",
-					count)
+				count := 0
+				for b.Loop() {
+					// Generate a unique account name for each
+					// iteration to ensure the idempotent nature of
+					// the benchmark.
+					accountName := fmt.Sprintf("new-account-%d",
+						count)
 
-				_, err := bw.NextAccount(
-					scopes[0], accountName,
-				)
-				require.NoError(b, err)
+					_, err := bw.NextAccount(
+						scopes[0], accountName,
+					)
+					require.NoError(b, err)
 
-				count++
-			}
-		})
+					count++
+				}
+			})
 
-		b.Run(name+"/1-After", func(b *testing.B) {
-			w := setupBenchmarkWallet(
-				b, benchmarkWalletConfig{
-					scopes:       scopes,
-					numAccounts:  accountGrowth[i],
-					numAddresses: addressGrowth[i],
-					numWalletTxs: utxoGrowth[i],
-				},
-			)
+			b.Run("1-After", func(b *testing.B) {
+				b.ReportAllocs()
+				b.ResetTimer()
 
-			b.ReportAllocs()
-			b.ResetTimer()
+				count := 0
+				for b.Loop() {
+					// Generate a unique account name for each
+					// iteration to ensure the idempotent nature of
+					// the benchmark.
+					accountName := fmt.Sprintf("new-account-%d",
+						count)
 
-			count := 0
-			for b.Loop() {
-				// Generate a unique account name for each
-				// iteration to ensure the idempotent nature of
-				// the benchmark.
-				accountName := fmt.Sprintf("new-account-%d",
-					count)
+					_, err := bw.NewAccount(
+						b.Context(), scopes[0], accountName,
+					)
+					require.NoError(b, err)
 
-				_, err := w.NewAccount(
-					b.Context(), scopes[0], accountName,
-				)
-				require.NoError(b, err)
-
-				count++
-			}
+					count++
+				}
+			})
 		})
 	}
 }
@@ -431,7 +401,7 @@ func BenchmarkGetAccountAPI(b *testing.B) {
 			accountGrowthPadding, accountGrowth[i],
 			utxoGrowthPadding, utxoGrowth[i])
 
-		b.Run(name+"/0-Before", func(b *testing.B) {
+		b.Run(name, func(b *testing.B) {
 			bw := setupBenchmarkWallet(
 				b, benchmarkWalletConfig{
 					scopes:       scopes,
@@ -441,36 +411,29 @@ func BenchmarkGetAccountAPI(b *testing.B) {
 				},
 			)
 
-			b.ReportAllocs()
-			b.ResetTimer()
+			b.Run("0-Before", func(b *testing.B) {
+				b.ReportAllocs()
+				b.ResetTimer()
 
-			for b.Loop() {
-				_, err := getAccountDeprecated(
-					bw.Wallet, scopes[0], accountName,
-				)
-				require.NoError(b, err)
-			}
-		})
+				for b.Loop() {
+					_, err := getAccountDeprecated(
+						bw.Wallet, scopes[0], accountName,
+					)
+					require.NoError(b, err)
+				}
+			})
 
-		b.Run(name+"/1-After", func(b *testing.B) {
-			w := setupBenchmarkWallet(
-				b, benchmarkWalletConfig{
-					scopes:       scopes,
-					numAccounts:  accountGrowth[i],
-					numAddresses: addressGrowth[i],
-					numWalletTxs: utxoGrowth[i],
-				},
-			)
+			b.Run("1-After", func(b *testing.B) {
+				b.ReportAllocs()
+				b.ResetTimer()
 
-			b.ReportAllocs()
-			b.ResetTimer()
-
-			for b.Loop() {
-				_, err := w.GetAccount(
-					b.Context(), scopes[0], accountName,
-				)
-				require.NoError(b, err)
-			}
+				for b.Loop() {
+					_, err := bw.GetAccount(
+						b.Context(), scopes[0], accountName,
+					)
+					require.NoError(b, err)
+				}
+			})
 		})
 	}
 }
@@ -522,8 +485,8 @@ func BenchmarkRenameAccountAPI(b *testing.B) {
 		name := fmt.Sprintf("%0*d-Accounts", accountGrowthPadding,
 			accountGrowth[i])
 
-		b.Run(name+"/0-Before", func(b *testing.B) {
-			w := setupBenchmarkWallet(
+		b.Run(name, func(b *testing.B) {
+			bw := setupBenchmarkWallet(
 				b, benchmarkWalletConfig{
 					scopes:       scopes,
 					numAccounts:  accountGrowth[i],
@@ -532,67 +495,58 @@ func BenchmarkRenameAccountAPI(b *testing.B) {
 				},
 			)
 
-			b.ReportAllocs()
-			b.ResetTimer()
+			b.Run("0-Before", func(b *testing.B) {
+				b.ReportAllocs()
+				b.ResetTimer()
 
-			count := 0
-			for b.Loop() {
-				newAccountName2 := fmt.Sprintf("%s-%d",
-					newAccountName, count)
+				count := 0
+				for b.Loop() {
+					newAccountName2 := fmt.Sprintf("%s-%d",
+						newAccountName, count)
 
-				err := w.RenameAccountDeprecated(
-					scopes[0], accountNumber,
-					newAccountName2,
-				)
-				require.NoError(b, err)
+					err := bw.RenameAccountDeprecated(
+						scopes[0], accountNumber,
+						newAccountName2,
+					)
+					require.NoError(b, err)
 
-				// Rename back to original to keep the benchmark
-				// idempotent.
-				err = w.RenameAccountDeprecated(
-					scopes[0], accountNumber, accountName,
-				)
-				require.NoError(b, err)
+					// Rename back to original to keep the benchmark
+					// idempotent.
+					err = bw.RenameAccountDeprecated(
+						scopes[0], accountNumber, accountName,
+					)
+					require.NoError(b, err)
 
-				count++
-			}
-		})
+					count++
+				}
+			})
 
-		b.Run(name+"/1-After", func(b *testing.B) {
-			w := setupBenchmarkWallet(
-				b, benchmarkWalletConfig{
-					scopes:       scopes,
-					numAccounts:  accountGrowth[i],
-					numAddresses: addressGrowth[i],
-					numWalletTxs: utxoGrowth[i],
-				},
-			)
+			b.Run("1-After", func(b *testing.B) {
+				b.ReportAllocs()
+				b.ResetTimer()
 
-			newAccountName := accountName + "-renamed"
+				count := 0
+				for b.Loop() {
+					newAccountName2 := fmt.Sprintf("%s-%d",
+						newAccountName, count)
 
-			b.ReportAllocs()
-			b.ResetTimer()
+					err := bw.RenameAccount(
+						b.Context(), scopes[0], accountName,
+						newAccountName2,
+					)
+					require.NoError(b, err)
 
-			count := 0
-			for b.Loop() {
-				newAccountName2 := fmt.Sprintf("%s-%d",
-					newAccountName, count)
+					// Rename back to original to keep the benchmark
+					// idempotent.
+					err = bw.RenameAccount(
+						b.Context(), scopes[0], newAccountName2,
+						accountName,
+					)
+					require.NoError(b, err)
 
-				err := w.RenameAccount(
-					b.Context(), scopes[0], accountName,
-					newAccountName2,
-				)
-				require.NoError(b, err)
-
-				// Rename back to original to keep the benchmark
-				// idempotent.
-				err = w.RenameAccount(
-					b.Context(), scopes[0], newAccountName2,
-					accountName,
-				)
-				require.NoError(b, err)
-
-				count++
-			}
+					count++
+				}
+			})
 		})
 	}
 }
@@ -647,7 +601,7 @@ func BenchmarkGetBalanceAPI(b *testing.B) {
 			accountGrowthPadding, accountGrowth[i],
 			utxoGrowthPadding, utxoGrowth[i])
 
-		b.Run(name+"/0-Before", func(b *testing.B) {
+		b.Run(name, func(b *testing.B) {
 			bw := setupBenchmarkWallet(
 				b, benchmarkWalletConfig{
 					scopes:       scopes,
@@ -657,38 +611,31 @@ func BenchmarkGetBalanceAPI(b *testing.B) {
 				},
 			)
 
-			b.ReportAllocs()
-			b.ResetTimer()
+			b.Run("0-Before", func(b *testing.B) {
+				b.ReportAllocs()
+				b.ResetTimer()
 
-			for b.Loop() {
-				_, err := getBalanceDeprecated(
-					bw.Wallet, scopes[0], accountName,
-					confirmations,
-				)
-				require.NoError(b, err)
-			}
-		})
+				for b.Loop() {
+					_, err := getBalanceDeprecated(
+						bw.Wallet, scopes[0], accountName,
+						confirmations,
+					)
+					require.NoError(b, err)
+				}
+			})
 
-		b.Run(name+"/1-After", func(b *testing.B) {
-			bw := setupBenchmarkWallet(
-				b, benchmarkWalletConfig{
-					scopes:       scopes,
-					numAccounts:  accountGrowth[i],
-					numAddresses: addressGrowth[i],
-					numWalletTxs: utxoGrowth[i],
-				},
-			)
+			b.Run("1-After", func(b *testing.B) {
+				b.ReportAllocs()
+				b.ResetTimer()
 
-			b.ReportAllocs()
-			b.ResetTimer()
-
-			for b.Loop() {
-				_, err := bw.Balance(
-					b.Context(), uint32(confirmations),
-					scopes[0], accountName,
-				)
-				require.NoError(b, err)
-			}
+				for b.Loop() {
+					_, err := bw.Balance(
+						b.Context(), uint32(confirmations),
+						scopes[0], accountName,
+					)
+					require.NoError(b, err)
+				}
+			})
 		})
 	}
 }
@@ -741,8 +688,8 @@ func BenchmarkImportAccountAPI(b *testing.B) {
 		name := fmt.Sprintf("%0*d-Accounts", accountGrowthPadding,
 			accountGrowth[i])
 
-		b.Run(name+"/0-Before", func(b *testing.B) {
-			w := setupBenchmarkWallet(
+		b.Run(name, func(b *testing.B) {
+			bw := setupBenchmarkWallet(
 				b, benchmarkWalletConfig{
 					scopes:       scopes,
 					numAccounts:  accountGrowth[i],
@@ -751,56 +698,49 @@ func BenchmarkImportAccountAPI(b *testing.B) {
 				},
 			)
 
-			b.ReportAllocs()
-			b.ResetTimer()
+			b.Run("0-Before", func(b *testing.B) {
+				b.ReportAllocs()
+				b.ResetTimer()
 
-			count := 0
-			for b.Loop() {
-				// Generate a unique account name for each
-				// iteration to ensure the idempotent nature of
-				// the benchmark.
-				accountName := fmt.Sprintf("import-account-%d",
-					count)
+				count := 0
+				for b.Loop() {
+					// Generate a unique account name for each
+					// iteration to ensure the idempotent nature of
+					// the benchmark.
+					accountName := fmt.Sprintf("import-account-%d",
+						count)
 
-				_, err := w.ImportAccountDeprecated(
-					accountName, accountKey,
-					masterFingerprint, &addrT,
-				)
-				require.NoError(b, err)
+					_, err := bw.ImportAccountDeprecated(
+						accountName, accountKey,
+						masterFingerprint, &addrT,
+					)
+					require.NoError(b, err)
 
-				count++
-			}
-		})
+					count++
+				}
+			})
 
-		b.Run(name+"/1-After", func(b *testing.B) {
-			w := setupBenchmarkWallet(
-				b, benchmarkWalletConfig{
-					scopes:       scopes,
-					numAccounts:  accountGrowth[i],
-					numAddresses: addressGrowth[i],
-					numWalletTxs: utxoGrowth[i],
-				},
-			)
+			b.Run("1-After", func(b *testing.B) {
+				b.ReportAllocs()
+				b.ResetTimer()
 
-			b.ReportAllocs()
-			b.ResetTimer()
+				count := 0
+				for b.Loop() {
+					// Generate a unique account name for each
+					// iteration to ensure the idempotent nature of
+					// the benchmark.
+					accountName := fmt.Sprintf("import-account-%d",
+						count)
 
-			count := 0
-			for b.Loop() {
-				// Generate a unique account name for each
-				// iteration to ensure the idempotent nature of
-				// the benchmark.
-				accountName := fmt.Sprintf("import-account-%d",
-					count)
+					_, err := bw.ImportAccount(
+						b.Context(), accountName, accountKey,
+						masterFingerprint, addrT, dryRun,
+					)
+					require.NoError(b, err)
 
-				_, err := w.ImportAccount(
-					b.Context(), accountName, accountKey,
-					masterFingerprint, addrT, dryRun,
-				)
-				require.NoError(b, err)
-
-				count++
-			}
+					count++
+				}
+			})
 		})
 	}
 }

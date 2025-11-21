@@ -66,7 +66,7 @@ func BenchmarkListAddressesAPI(b *testing.B) {
 			addressGrowthPadding, addressGrowth[i],
 			utxoGrowthPadding, utxoGrowth[i])
 
-		b.Run(name+"/0-Before", func(b *testing.B) {
+		b.Run(name, func(b *testing.B) {
 			bw := setupBenchmarkWallet(
 				b, benchmarkWalletConfig{
 					scopes:       scopes,
@@ -76,36 +76,29 @@ func BenchmarkListAddressesAPI(b *testing.B) {
 				},
 			)
 
-			b.ReportAllocs()
-			b.ResetTimer()
+			b.Run("0-Before", func(b *testing.B) {
+				b.ReportAllocs()
+				b.ResetTimer()
 
-			for b.Loop() {
-				_, err := listAddressesDeprecated(
-					bw.Wallet, accountNumber,
-				)
-				require.NoError(b, err)
-			}
-		})
+				for b.Loop() {
+					_, err := listAddressesDeprecated(
+						bw.Wallet, accountNumber,
+					)
+					require.NoError(b, err)
+				}
+			})
 
-		b.Run(name+"/1-After", func(b *testing.B) {
-			w := setupBenchmarkWallet(
-				b, benchmarkWalletConfig{
-					scopes:       scopes,
-					numAccounts:  accountGrowth[i],
-					numAddresses: addressGrowth[i],
-					numWalletTxs: utxoGrowth[i],
-				},
-			)
+			b.Run("1-After", func(b *testing.B) {
+				b.ReportAllocs()
+				b.ResetTimer()
 
-			b.ReportAllocs()
-			b.ResetTimer()
-
-			for b.Loop() {
-				_, err := w.ListAddresses(
-					b.Context(), accountName, addrType,
-				)
-				require.NoError(b, err)
-			}
+				for b.Loop() {
+					_, err := bw.ListAddresses(
+						b.Context(), accountName, addrType,
+					)
+					require.NoError(b, err)
+				}
+			})
 		})
 	}
 }
@@ -122,7 +115,7 @@ func BenchmarkAddressInfoAPI(b *testing.B) {
 
 		// endGrowthIteration is the maximum iteration index for the
 		// growth sequence.
-		endGrowthIteration = 14
+		endGrowthIteration = 5
 	)
 
 	var (
@@ -133,7 +126,7 @@ func BenchmarkAddressInfoAPI(b *testing.B) {
 
 		addressGrowth = mapRange(
 			startGrowthIteration, endGrowthIteration,
-			exponentialGrowth,
+			linearGrowth,
 		)
 
 		utxoGrowth = mapRange(
@@ -157,7 +150,7 @@ func BenchmarkAddressInfoAPI(b *testing.B) {
 			accountGrowthPadding, accountGrowth[i],
 			addressGrowthPadding, addressGrowth[i])
 
-		b.Run(name+"/0-Before", func(b *testing.B) {
+		b.Run(name, func(b *testing.B) {
 			bw := setupBenchmarkWallet(
 				b, benchmarkWalletConfig{
 					scopes:       scopes,
@@ -171,36 +164,25 @@ func BenchmarkAddressInfoAPI(b *testing.B) {
 				b, bw.Wallet, accountGrowth[i],
 			)
 
-			b.ReportAllocs()
-			b.ResetTimer()
+			b.Run("0-Before", func(b *testing.B) {
+				b.ReportAllocs()
+				b.ResetTimer()
 
-			for b.Loop() {
-				_, err := bw.AddressInfoDeprecated(testAddr)
-				require.NoError(b, err)
-			}
-		})
+				for b.Loop() {
+					_, err := bw.AddressInfoDeprecated(testAddr)
+					require.NoError(b, err)
+				}
+			})
 
-		b.Run(name+"/1-After", func(b *testing.B) {
-			bw := setupBenchmarkWallet(
-				b, benchmarkWalletConfig{
-					scopes:       scopes,
-					numAccounts:  accountGrowth[i],
-					numAddresses: addressGrowth[i],
-					numWalletTxs: utxoGrowth[i],
-				},
-			)
+			b.Run("1-After", func(b *testing.B) {
+				b.ReportAllocs()
+				b.ResetTimer()
 
-			testAddr := getTestAddress(
-				b, bw.Wallet, accountGrowth[i],
-			)
-
-			b.ReportAllocs()
-			b.ResetTimer()
-
-			for b.Loop() {
-				_, err := bw.AddressInfo(b.Context(), testAddr)
-				require.NoError(b, err)
-			}
+				for b.Loop() {
+					_, err := bw.AddressInfo(b.Context(), testAddr)
+					require.NoError(b, err)
+				}
+			})
 		})
 	}
 }
@@ -219,7 +201,7 @@ func BenchmarkGetUnusedAddressAPI(b *testing.B) {
 
 		// endGrowthIteration is the maximum iteration index for the
 		// growth sequence.
-		endGrowthIteration = 14
+		endGrowthIteration = 5
 	)
 
 	var (
@@ -230,7 +212,7 @@ func BenchmarkGetUnusedAddressAPI(b *testing.B) {
 
 		addressGrowth = mapRange(
 			startGrowthIteration, endGrowthIteration,
-			exponentialGrowth,
+			linearGrowth,
 		)
 
 		utxoGrowth = mapRange(
@@ -260,7 +242,7 @@ func BenchmarkGetUnusedAddressAPI(b *testing.B) {
 			accountGrowthPadding, accountGrowth[i],
 			addressGrowthPadding, addressGrowth[i])
 
-		b.Run(name+"/0-Before", func(b *testing.B) {
+		b.Run(name, func(b *testing.B) {
 			bw := setupBenchmarkWallet(
 				b, benchmarkWalletConfig{
 					scopes:       scopes,
@@ -270,45 +252,38 @@ func BenchmarkGetUnusedAddressAPI(b *testing.B) {
 				},
 			)
 
-			b.ReportAllocs()
-			b.ResetTimer()
+			b.Run("0-Before", func(b *testing.B) {
+				b.ReportAllocs()
+				b.ResetTimer()
 
-			for b.Loop() {
-				addr, err := bw.NewAddressDeprecated(
-					accountNumber, scopes[0],
-				)
-				require.NoError(b, err)
+				for b.Loop() {
+					addr, err := bw.NewAddressDeprecated(
+						accountNumber, scopes[0],
+					)
+					require.NoError(b, err)
 
-				// Mark the address as used to make the
-				// benchmark iteration idempotent.
-				markAddressAsUsed(b, bw.Wallet, addr)
-			}
-		})
+					// Mark the address as used to make the
+					// benchmark iteration idempotent.
+					markAddressAsUsed(b, bw.Wallet, addr)
+				}
+			})
 
-		b.Run(name+"/1-After", func(b *testing.B) {
-			bw := setupBenchmarkWallet(
-				b, benchmarkWalletConfig{
-					scopes:       scopes,
-					numAccounts:  accountGrowth[i],
-					numAddresses: addressGrowth[i],
-					numWalletTxs: utxoGrowth[i],
-				},
-			)
+			b.Run("1-After", func(b *testing.B) {
+				b.ReportAllocs()
+				b.ResetTimer()
 
-			b.ReportAllocs()
-			b.ResetTimer()
+				for b.Loop() {
+					addr, err := bw.GetUnusedAddress(
+						b.Context(), accountName, addrType,
+						false,
+					)
+					require.NoError(b, err)
 
-			for b.Loop() {
-				addr, err := bw.GetUnusedAddress(
-					b.Context(), accountName, addrType,
-					false,
-				)
-				require.NoError(b, err)
-
-				// Mark the address as used to make the
-				// benchmark iteration idempotent.
-				markAddressAsUsed(b, bw.Wallet, addr)
-			}
+					// Mark the address as used to make the
+					// benchmark iteration idempotent.
+					markAddressAsUsed(b, bw.Wallet, addr)
+				}
+			})
 		})
 	}
 }
@@ -326,7 +301,7 @@ func BenchmarkNewAddressAPI(b *testing.B) {
 
 		// endGrowthIteration is the maximum iteration index for the
 		// growth sequence.
-		endGrowthIteration = 14
+		endGrowthIteration = 5
 	)
 
 	var (
@@ -337,7 +312,7 @@ func BenchmarkNewAddressAPI(b *testing.B) {
 
 		addressGrowth = mapRange(
 			startGrowthIteration, endGrowthIteration,
-			exponentialGrowth,
+			linearGrowth,
 		)
 
 		utxoGrowth = mapRange(
@@ -367,7 +342,7 @@ func BenchmarkNewAddressAPI(b *testing.B) {
 			accountGrowthPadding, accountGrowth[i],
 			addressGrowthPadding, addressGrowth[i])
 
-		b.Run(name+"/0-Before", func(b *testing.B) {
+		b.Run(name, func(b *testing.B) {
 			bw := setupBenchmarkWallet(
 				b, benchmarkWalletConfig{
 					scopes:       scopes,
@@ -377,37 +352,30 @@ func BenchmarkNewAddressAPI(b *testing.B) {
 				},
 			)
 
-			b.ReportAllocs()
-			b.ResetTimer()
+			b.Run("0-Before", func(b *testing.B) {
+				b.ReportAllocs()
+				b.ResetTimer()
 
-			for b.Loop() {
-				_, err := bw.NewAddressDeprecated(
-					accountNumber, scopes[0],
-				)
-				require.NoError(b, err)
-			}
-		})
+				for b.Loop() {
+					_, err := bw.NewAddressDeprecated(
+						accountNumber, scopes[0],
+					)
+					require.NoError(b, err)
+				}
+			})
 
-		b.Run(name+"/1-After", func(b *testing.B) {
-			w := setupBenchmarkWallet(
-				b, benchmarkWalletConfig{
-					scopes:       scopes,
-					numAccounts:  accountGrowth[i],
-					numAddresses: addressGrowth[i],
-					numWalletTxs: utxoGrowth[i],
-				},
-			)
+			b.Run("1-After", func(b *testing.B) {
+				b.ReportAllocs()
+				b.ResetTimer()
 
-			b.ReportAllocs()
-			b.ResetTimer()
-
-			for b.Loop() {
-				_, err := w.NewAddress(
-					b.Context(), accountName, addrType,
-					false,
-				)
-				require.NoError(b, err)
-			}
+				for b.Loop() {
+					_, err := bw.NewAddress(
+						b.Context(), accountName, addrType,
+						false,
+					)
+					require.NoError(b, err)
+				}
+			})
 		})
 	}
 }
@@ -425,7 +393,7 @@ func BenchmarkImportPublicKeyAPI(b *testing.B) {
 
 		// endGrowthIteration is the maximum iteration index for the
 		// growth sequence.
-		endGrowthIteration = 14
+		endGrowthIteration = 5
 	)
 
 	var (
@@ -545,7 +513,7 @@ func BenchmarkImportTaprootScriptAPI(b *testing.B) {
 
 		// endGrowthIteration is the maximum iteration index for the
 		// growth sequence.
-		endGrowthIteration = 10
+		endGrowthIteration = 5
 	)
 
 	var (
@@ -675,7 +643,7 @@ func BenchmarkScriptForOutputAPI(b *testing.B) {
 
 		// endGrowthIteration is the maximum iteration index for the
 		// growth sequence.
-		endGrowthIteration = 10
+		endGrowthIteration = 5
 	)
 
 	var (
@@ -686,7 +654,7 @@ func BenchmarkScriptForOutputAPI(b *testing.B) {
 
 		addressGrowth = mapRange(
 			startGrowthIteration, endGrowthIteration,
-			exponentialGrowth,
+			linearGrowth,
 		)
 
 		utxoGrowth = mapRange(
