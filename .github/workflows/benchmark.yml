@@ -51,7 +51,7 @@ jobs:
           # Run up to 3 benchmarks in parallel
           echo "$BENCHMARKS" | parallel -j 3 --line-buffer \
             'go test -tags="dev error" -test.timeout=20m -test.benchmem -test.bench=^{}$ -test.run=NONE github.com/btcsuite/btcwallet/wallet' \
-            > base-bench.txt 2>&1
+            2>&1 | tee base-bench.txt
 
           echo "Base branch benchmarks completed"
 
@@ -66,7 +66,7 @@ jobs:
           # Run up to 3 benchmarks in parallel
           echo "$BENCHMARKS" | parallel -j 3 --line-buffer \
             'go test -tags="dev error" -test.timeout=20m -test.benchmem -test.bench=^{}$ -test.run=NONE github.com/btcsuite/btcwallet/wallet' \
-            > pr-bench.txt 2>&1
+            2>&1 | tee pr-bench.txt
 
           echo "PR branch benchmarks completed"
 
