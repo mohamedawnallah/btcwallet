@@ -317,7 +317,7 @@ func BenchmarkNewAccountAPI(b *testing.B) {
 					// Generate a unique account name for each
 					// iteration to ensure the idempotent nature of
 					// the benchmark.
-					accountName := fmt.Sprintf("new-account-%d",
+					accountName := fmt.Sprintf("new-account-before-%d",
 						count)
 
 					_, err := bw.NextAccount(
@@ -338,7 +338,7 @@ func BenchmarkNewAccountAPI(b *testing.B) {
 					// Generate a unique account name for each
 					// iteration to ensure the idempotent nature of
 					// the benchmark.
-					accountName := fmt.Sprintf("new-account-%d",
+					accountName := fmt.Sprintf("new-account-after-%d",
 						count)
 
 					_, err := bw.NewAccount(
@@ -707,7 +707,7 @@ func BenchmarkImportAccountAPI(b *testing.B) {
 					// Generate a unique account name for each
 					// iteration to ensure the idempotent nature of
 					// the benchmark.
-					accountName := fmt.Sprintf("import-account-%d",
+					accountName := fmt.Sprintf("import-account-before-%d",
 						count)
 
 					_, err := bw.ImportAccountDeprecated(
@@ -729,7 +729,7 @@ func BenchmarkImportAccountAPI(b *testing.B) {
 					// Generate a unique account name for each
 					// iteration to ensure the idempotent nature of
 					// the benchmark.
-					accountName := fmt.Sprintf("import-account-%d",
+					accountName := fmt.Sprintf("import-account-after-%d",
 						count)
 
 					_, err := bw.ImportAccount(
