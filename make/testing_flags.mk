@@ -43,6 +43,10 @@ ifneq ($(benchmem),)
 TEST_FLAGS += -test.benchmem
 endif
 
+ifneq ($(parallel),)
+TEST_FLAGS += -test.parallel=$(parallel)
+endif
+
 # BENCH_PATTERN is the pattern to filter benchmarks. If not specified, all
 # benchmarks are run (default is ".").
 BENCH_PATTERN ?= .
