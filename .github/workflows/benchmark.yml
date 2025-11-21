@@ -48,10 +48,15 @@ jobs:
           # Get list of all benchmark functions
           BENCHMARKS=$(go test -list 'Benchmark.*' ./wallet 2>/dev/null | grep '^Benchmark')
 
-          # Run up to 3 benchmarks in parallel
+          # Run up to 3 benchmarks in parallel, save each to separate file
           echo "$BENCHMARKS" | parallel -j 3 --line-buffer \
-            'go test -tags="dev error" -test.timeout=20m -test.benchmem -test.bench=^{}$ -test.run=NONE github.com/btcsuite/btcwallet/wallet' \
-            2>&1 | tee base-bench.txt
+            'go test -tags="dev error" -test.timeout=20m -test.benchmem -test.bench=^{}$ -test.run=NONE github.com/btcsuite/btcwallet/wallet > base-bench-{}.txt 2>&1'
+
+          # Combine all results in order
+          cat base-bench-*.txt > base-bench.txt
+
+          # Show combined results
+          cat base-bench.txt
 
           echo "Base branch benchmarks completed"
 
@@ -63,10 +68,15 @@ jobs:
           # Get list of all benchmark functions
           BENCHMARKS=$(go test -list 'Benchmark.*' ./wallet 2>/dev/null | grep '^Benchmark')
 
-          # Run up to 3 benchmarks in parallel
+          # Run up to 3 benchmarks in parallel, save each to separate file
           echo "$BENCHMARKS" | parallel -j 3 --line-buffer \
-            'go test -tags="dev error" -test.timeout=20m -test.benchmem -test.bench=^{}$ -test.run=NONE github.com/btcsuite/btcwallet/wallet' \
-            2>&1 | tee pr-bench.txt
+            'go test -tags="dev error" -test.timeout=20m -test.benchmem -test.bench=^{}$ -test.run=NONE github.com/btcsuite/btcwallet/wallet > pr-bench-{}.txt 2>&1'
+
+          # Combine all results in order
+          cat pr-bench-*.txt > pr-bench.txt
+
+          # Show combined results
+          cat pr-bench.txt
 
           echo "PR branch benchmarks completed"
 
