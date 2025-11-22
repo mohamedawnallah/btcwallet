@@ -51,8 +51,8 @@ jobs:
           # Get list of all benchmark functions
           go test -tags="dev error" -list='Benchmark.*' ./wallet | grep '^Benchmark' > benchmark-list.txt
 
-          # Run benchmarks in parallel (max 3 at a time)
-          cat benchmark-list.txt | parallel -j3 --halt soon,fail=1 \
+          # Run benchmarks in parallel (use all available CPU cores)
+          cat benchmark-list.txt | parallel -j$(nproc) --halt soon,fail=1 \
             "go test -tags='dev error' -timeout=0 -benchmem -bench='^{}$' -run=NONE ./wallet" \
             2>&1 | tee base-bench-raw.txt
 
@@ -101,8 +101,8 @@ jobs:
           # Get list of all benchmark functions
           go test -tags="dev error" -list='Benchmark.*' ./wallet | grep '^Benchmark' > benchmark-list.txt
 
-          # Run benchmarks in parallel (max 3 at a time)
-          cat benchmark-list.txt | parallel -j3 --halt soon,fail=1 \
+          # Run benchmarks in parallel (use all available CPU cores)
+          cat benchmark-list.txt | parallel -j$(nproc) --halt soon,fail=1 \
             "go test -tags='dev error' -timeout=0 -benchmem -bench='^{}$' -run=NONE ./wallet" \
             2>&1 | tee pr-bench-raw.txt
 
@@ -148,13 +148,64 @@ jobs:
       - name: Compare benchmarks with benchstat
         id: benchstat
         run: |
-          echo "## Benchmark Comparison Results" > benchstat-output.txt
+          echo "## 📊 Benchmark Comparison Results" > benchstat-output.txt
           echo "" >> benchstat-output.txt
-          echo "Comparing \`${{ github.base_ref }}\` (base) vs \`${{ github.head_ref }}\` (PR)" >> benchstat-output.txt
+          echo "**Comparing:** \`${{ github.base_ref }}\` (base) → \`${{ github.head_ref }}\` (PR)" >> benchstat-output.txt
+          echo "" >> benchstat-output.txt
+
+          # Run benchstat and save raw output
+          benchstat base-bench.txt pr-bench.txt | tee benchstat-raw.txt > benchstat-table.txt || true
+
+          # Create formatted summary
+          echo "### 📈 Performance Summary" >> benchstat-output.txt
+          echo "" >> benchstat-output.txt
+
+          # Extract geomean if present
+          if grep -q "geomean" benchstat-table.txt; then
+            echo "**Overall Performance (geomean):**" >> benchstat-output.txt
+            grep "geomean" benchstat-table.txt | while read -r line; do
+              echo "- $line" >> benchstat-output.txt
+            done
+            echo "" >> benchstat-output.txt
+          fi
+
+          # Count improvements and regressions
+          IMPROVEMENTS=$(grep -c '\-[0-9]\+\.[0-9]\+%' benchstat-table.txt || echo "0")
+          REGRESSIONS=$(grep -c '\+[0-9]\+\.[0-9]\+%' benchstat-table.txt || echo "0")
+          NO_CHANGE=$(grep -c '~' benchstat-table.txt || echo "0")
+
+          echo "**Changes:**" >> benchstat-output.txt
+          echo "- ✅ **$IMPROVEMENTS** benchmarks improved (faster/less memory)" >> benchstat-output.txt
+          echo "- ⚠️ **$REGRESSIONS** benchmarks regressed (slower/more memory)" >> benchstat-output.txt
+          echo "- ➖ **$NO_CHANGE** benchmarks unchanged" >> benchstat-output.txt
+          echo "" >> benchstat-output.txt
+
+          # Add legend
+          echo "### 📖 How to Read Results" >> benchstat-output.txt
+          echo "" >> benchstat-output.txt
+          echo "**Symbols:**" >> benchstat-output.txt
+          echo "- \`~\` = no significant difference" >> benchstat-output.txt
+          echo "- \`+X%\` = regression (slower/more memory)" >> benchstat-output.txt
+          echo "- \`-X%\` = improvement (faster/less memory)" >> benchstat-output.txt
+          echo "- \`±∞\` = high variance (need more samples for reliable comparison)" >> benchstat-output.txt
+          echo "" >> benchstat-output.txt
+          echo "**Metrics:**" >> benchstat-output.txt
+          echo "- \`ns/op\` = nanoseconds per operation (time)" >> benchstat-output.txt
+          echo "- \`B/op\` = bytes allocated per operation (memory)" >> benchstat-output.txt
+          echo "- \`allocs/op\` = number of allocations per operation" >> benchstat-output.txt
+          echo "" >> benchstat-output.txt
+
+          # Add detailed results
+          echo "### 📋 Detailed Results" >> benchstat-output.txt
+          echo "" >> benchstat-output.txt
+          echo "<details>" >> benchstat-output.txt
+          echo "<summary>Click to expand full benchmark comparison</summary>" >> benchstat-output.txt
           echo "" >> benchstat-output.txt
           echo '```' >> benchstat-output.txt
-          benchstat base-bench.txt pr-bench.txt | tee benchstat-raw.txt >> benchstat-output.txt || true
+          cat benchstat-table.txt >> benchstat-output.txt
           echo '```' >> benchstat-output.txt
+          echo "" >> benchstat-output.txt
+          echo "</details>" >> benchstat-output.txt
 
           # Save for PR comment
           cat benchstat-output.txt > $GITHUB_STEP_SUMMARY
@@ -264,7 +315,13 @@ jobs:
               comment.body.includes('Benchmark Comparison Results')
             );
 
-            const commentBody = benchstatOutput + '\n\n---\n*Benchmarks run in parallel on separate runners*';
+            const commentBody = benchstatOutput + '\n\n---\n\n' +
+              '💡 **Notes:**\n' +
+              '- Benchmarks run in parallel on separate GitHub runners\n' +
+              '- Statistical significance requires 6+ samples; `±∞` indicates high variance\n' +
+              '- Performance regression threshold: **10%** for time, memory, and allocations\n' +
+              '\n' +
+              '_Generated by [benchmark.yml](.github/workflows/benchmark.yml) using [benchstat](https://pkg.go.dev/golang.org/x/perf/cmd/benchstat)_';
 
             if (botComment) {
               // Update existing comment
