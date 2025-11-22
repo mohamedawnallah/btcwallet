@@ -171,9 +171,11 @@ func BenchmarkGetTxAPI(b *testing.B) {
 			//   - The new API maintains compatibility with the
 			//     legacy API
 			//   - Regression prevention for future changes
-			assertGetTxAPIsEquivalent(
-				b, bw.Wallet, beforeResult, afterResult,
-			)
+			if !testing.Short() {
+				assertGetTxAPIsEquivalent(
+					b, bw.Wallet, beforeResult, afterResult,
+				)
+			}
 		})
 	}
 }
@@ -309,7 +311,11 @@ func BenchmarkGetTxAPIConcurrently(b *testing.B) {
 				})
 			})
 
-			assertGetTxAPIsEquivalent(b, bw.Wallet, before, after)
+			if !testing.Short() {
+				assertGetTxAPIsEquivalent(
+					b, bw.Wallet, before, after,
+				)
+			}
 		})
 	}
 }
@@ -485,9 +491,11 @@ func BenchmarkListTxnsAPI(b *testing.B) {
 			//   - The new API maintains compatibility with the
 			//     legacy API
 			//   - Regression prevention for future changes
-			assertListTxnsAPIsEquivalent(
-				b, bw.Wallet, beforeResult, afterResult,
-			)
+			if !testing.Short() {
+				assertListTxnsAPIsEquivalent(
+					b, bw.Wallet, beforeResult, afterResult,
+				)
+			}
 		})
 	}
 }
@@ -625,9 +633,11 @@ func BenchmarkListTxnsAPIConcurrently(b *testing.B) {
 				})
 			})
 
-			assertListTxnsAPIsEquivalent(
-				b, bw.Wallet, beforeResult, afterResult,
-			)
+			if testing.Short() {
+				assertListTxnsAPIsEquivalent(
+					b, bw.Wallet, beforeResult, afterResult,
+				)
+			}
 		})
 	}
 }

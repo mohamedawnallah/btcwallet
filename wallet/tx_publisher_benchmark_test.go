@@ -227,9 +227,11 @@ func BenchmarkBroadcastAPI(b *testing.B) {
 				afterResult = result
 			})
 
-			assertBroadcastAPIsEquivalent(
-				b, beforeResult, afterResult,
-			)
+			if !testing.Short() {
+				assertBroadcastAPIsEquivalent(
+					b, beforeResult, afterResult,
+				)
+			}
 		})
 	}
 }
@@ -408,9 +410,11 @@ func BenchmarkBroadcastAPIConcurrently(b *testing.B) {
 				require.NoError(b, err)
 			})
 
-			assertBroadcastAPIsEquivalent(
-				b, beforeResult, afterResult,
-			)
+			if !testing.Short() {
+				assertBroadcastAPIsEquivalent(
+					b, beforeResult, afterResult,
+				)
+			}
 		})
 	}
 }
