@@ -567,16 +567,16 @@ func BenchmarkImportTaprootScriptAPI(b *testing.B) {
 			addressGrowthPadding, addressGrowth[i])
 
 		b.Run(name, func(b *testing.B) {
-			bw := setupBenchmarkWallet(
-				b, benchmarkWalletConfig{
-					scopes:       scopes,
-					numAccounts:  accountGrowth[i],
-					numAddresses: addressGrowth[i],
-					numWalletTxs: utxoGrowth[i],
-				},
-			)
-
 			b.Run("0-Before", func(b *testing.B) {
+				bw := setupBenchmarkWallet(
+					b, benchmarkWalletConfig{
+						scopes:       scopes,
+						numAccounts:  accountGrowth[i],
+						numAddresses: addressGrowth[i],
+						numWalletTxs: utxoGrowth[i],
+					},
+				)
+
 				b.ReportAllocs()
 				b.ResetTimer()
 
@@ -595,9 +595,8 @@ func BenchmarkImportTaprootScriptAPI(b *testing.B) {
 
 					tapscript := generateTestTapscript(b, pubKey)
 
-					syncedTo := bw.addrStore.SyncedTo()
 					_, err = bw.ImportTaprootScriptDeprecated(
-						scopes[0], &tapscript, &syncedTo,
+						scopes[0], &tapscript, nil,
 						byte(witnessVersion), isSecretScript,
 					)
 					require.NoError(b, err)
@@ -607,6 +606,15 @@ func BenchmarkImportTaprootScriptAPI(b *testing.B) {
 			})
 
 			b.Run("1-After", func(b *testing.B) {
+				bw := setupBenchmarkWallet(
+					b, benchmarkWalletConfig{
+						scopes:       scopes,
+						numAccounts:  accountGrowth[i],
+						numAddresses: addressGrowth[i],
+						numWalletTxs: utxoGrowth[i],
+					},
+				)
+
 				b.ReportAllocs()
 				b.ResetTimer()
 
