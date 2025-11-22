@@ -128,6 +128,10 @@ func BenchmarkBroadcastAPI(b *testing.B) {
 			)
 
 			b.Run("0-Before", func(b *testing.B) {
+				if testing.Short() {
+					b.Skip("skipping 0-Before in short mode")
+				}
+
 				result := make(map[chainhash.Hash]*wire.MsgTx)
 				baselineResult := make(
 					map[chainhash.Hash]*wire.MsgTx,
@@ -344,6 +348,10 @@ func BenchmarkBroadcastAPIConcurrently(b *testing.B) {
 			)
 
 			b.Run("0-Before", func(b *testing.B) {
+				if testing.Short() {
+					b.Skip("skipping 0-Before in short mode")
+				}
+
 				broadcastLabel := "concurrent-before"
 
 				// Clear mempool to ensure clean state for

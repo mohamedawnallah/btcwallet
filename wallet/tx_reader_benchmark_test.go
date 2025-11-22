@@ -100,6 +100,10 @@ func BenchmarkGetTxAPI(b *testing.B) {
 			)
 
 			b.Run("0-Before", func(b *testing.B) {
+				if testing.Short() {
+					b.Skip("skipping 0-Before in short mode")
+				}
+
 				var (
 					result         *GetTransactionResult
 					baselineResult *GetTransactionResult

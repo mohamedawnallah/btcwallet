@@ -66,6 +66,10 @@ func BenchmarkListAccountsByScopeAPI(b *testing.B) {
 			)
 
 			b.Run("0-Before", func(b *testing.B) {
+				if testing.Short() {
+					b.Skip("skipping 0-Before in short mode")
+				}
+
 				b.ReportAllocs()
 				b.ResetTimer()
 
@@ -148,6 +152,10 @@ func BenchmarkListAccountsAPI(b *testing.B) {
 			)
 
 			b.Run("0-Before", func(b *testing.B) {
+				if testing.Short() {
+					b.Skip("skipping 0-Before in short mode")
+				}
+
 				b.ReportAllocs()
 				b.ResetTimer()
 
@@ -230,6 +238,10 @@ func BenchmarkListAccountsByNameAPI(b *testing.B) {
 			)
 
 			b.Run("0-Before", func(b *testing.B) {
+				if testing.Short() {
+					b.Skip("skipping 0-Before in short mode")
+				}
+
 				b.ReportAllocs()
 				b.ResetTimer()
 
@@ -412,6 +424,10 @@ func BenchmarkGetAccountAPI(b *testing.B) {
 			)
 
 			b.Run("0-Before", func(b *testing.B) {
+				if testing.Short() {
+					b.Skip("skipping 0-Before in short mode")
+				}
+
 				b.ReportAllocs()
 				b.ResetTimer()
 
@@ -612,6 +628,10 @@ func BenchmarkGetBalanceAPI(b *testing.B) {
 			)
 
 			b.Run("0-Before", func(b *testing.B) {
+				if testing.Short() {
+					b.Skip("skipping 0-Before in short mode")
+				}
+
 				b.ReportAllocs()
 				b.ResetTimer()
 

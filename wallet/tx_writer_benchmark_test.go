@@ -99,6 +99,10 @@ func BenchmarkLabelTxAPI(b *testing.B) {
 			require.NoError(b, err)
 
 			b.Run("0-Before", func(b *testing.B) {
+				if testing.Short() {
+					b.Skip("skipping 0-Before in short mode")
+				}
+
 				const overwrite = true
 
 				b.ReportAllocs()
@@ -231,6 +235,10 @@ func BenchmarkLabelTxAPIConcurrently(b *testing.B) {
 			require.NoError(b, err)
 
 			b.Run("0-Before", func(b *testing.B) {
+				if testing.Short() {
+					b.Skip("skipping 0-Before in short mode")
+				}
+
 				const overwrite = true
 
 				b.ReportAllocs()
