@@ -448,6 +448,9 @@ func BenchmarkImportPublicKeyAPI(b *testing.B) {
 
 		b.Run(name, func(b *testing.B) {
 			b.Run("0-Before", func(b *testing.B) {
+				if testing.Short() {
+					b.Skip("skipping 0-Before in short mode")
+				}
 				// Create a fresh wallet to avoid conflicts with
 				// keys potentially imported in previous
 				// benchmarks. Each benchmark needs its own
@@ -584,6 +587,9 @@ func BenchmarkImportTaprootScriptAPI(b *testing.B) {
 
 		b.Run(name, func(b *testing.B) {
 			b.Run("0-Before", func(b *testing.B) {
+				if testing.Short() {
+					b.Skip("skipping 0-Before in short mode")
+				}
 				bw := setupBenchmarkWallet(
 					b, benchmarkWalletConfig{
 						scopes:       scopes,

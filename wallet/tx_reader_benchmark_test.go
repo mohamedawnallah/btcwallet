@@ -273,6 +273,9 @@ func BenchmarkGetTxAPIConcurrently(b *testing.B) {
 			)
 
 			b.Run("0-Before", func(b *testing.B) {
+				if testing.Short() {
+					b.Skip("skipping 0-Before in short mode")
+				}
 				b.ReportAllocs()
 				b.ResetTimer()
 
@@ -411,6 +414,9 @@ func BenchmarkListTxnsAPI(b *testing.B) {
 			)
 
 			b.Run("0-Before", func(b *testing.B) {
+				if testing.Short() {
+					b.Skip("skipping 0-Before in short mode")
+				}
 				var (
 					result      *GetTransactionsResult
 					firstResult *GetTransactionsResult
@@ -581,6 +587,9 @@ func BenchmarkListTxnsAPIConcurrently(b *testing.B) {
 			)
 
 			b.Run("0-Before", func(b *testing.B) {
+				if testing.Short() {
+					b.Skip("skipping 0-Before in short mode")
+				}
 				b.ReportAllocs()
 				b.ResetTimer()
 

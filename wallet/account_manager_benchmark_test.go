@@ -321,6 +321,9 @@ func BenchmarkNewAccountAPI(b *testing.B) {
 			)
 
 			b.Run("0-Before", func(b *testing.B) {
+				if testing.Short() {
+					b.Skip("skipping 0-Before in short mode")
+				}
 				b.ReportAllocs()
 				b.ResetTimer()
 
@@ -512,6 +515,9 @@ func BenchmarkRenameAccountAPI(b *testing.B) {
 			)
 
 			b.Run("0-Before", func(b *testing.B) {
+				if testing.Short() {
+					b.Skip("skipping 0-Before in short mode")
+				}
 				b.ReportAllocs()
 				b.ResetTimer()
 
@@ -719,6 +725,9 @@ func BenchmarkImportAccountAPI(b *testing.B) {
 			)
 
 			b.Run("0-Before", func(b *testing.B) {
+				if testing.Short() {
+					b.Skip("skipping 0-Before in short mode")
+				}
 				b.ReportAllocs()
 				b.ResetTimer()
 
