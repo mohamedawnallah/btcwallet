@@ -409,13 +409,14 @@ func BenchmarkReleaseOutputAPI(b *testing.B) {
 
 				for b.Loop() {
 					_, err := bw.LeaseOutput(
-						b.Context(), lockID, testOutpoint,
-						duration,
+						b.Context(), lockID,
+						testOutpoint, duration,
 					)
 					require.NoError(b, err)
 
 					err = bw.ReleaseOutput(
-						b.Context(), lockID, testOutpoint,
+						b.Context(), lockID,
+						testOutpoint,
 					)
 					require.NoError(b, err)
 				}
@@ -514,7 +515,9 @@ func BenchmarkListLeasedOutputsAPI(b *testing.B) {
 				b.ResetTimer()
 
 				for b.Loop() {
-					_, err := bw.ListLeasedOutputs(b.Context())
+					_, err := bw.ListLeasedOutputs(
+						b.Context(),
+					)
 					require.NoError(b, err)
 				}
 			})
