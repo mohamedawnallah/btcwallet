@@ -330,7 +330,7 @@ func BenchmarkListTxnsAPI(b *testing.B) {
 
 		// endGrowthIteration is the maximum iteration index for the
 		// growth sequence.
-		endGrowthIteration = 10
+		endGrowthIteration = 5
 	)
 
 	var (

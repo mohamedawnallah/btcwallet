@@ -23,7 +23,7 @@ func BenchmarkGetUtxoAPI(b *testing.B) {
 
 		// endGrowthIteration is the maximum iteration index for the
 		// growth sequence.
-		endGrowthIteration = 14
+		endGrowthIteration = 5
 	)
 
 	var (
@@ -115,7 +115,7 @@ func BenchmarkListUnspentAPI(b *testing.B) {
 
 		// endGrowthIteration is the maximum iteration index for the
 		// growth sequence.
-		endGrowthIteration = 14
+		endGrowthIteration = 5
 	)
 
 	var (
@@ -215,7 +215,7 @@ func BenchmarkLeaseOutputAPI(b *testing.B) {
 
 		// endGrowthIteration is the maximum iteration index for the
 		// growth sequence.
-		endGrowthIteration = 14
+		endGrowthIteration = 5
 	)
 
 	var (
@@ -313,7 +313,7 @@ func BenchmarkReleaseOutputAPI(b *testing.B) {
 
 		// endGrowthIteration is the maximum iteration index for the
 		// growth sequence.
-		endGrowthIteration = 14
+		endGrowthIteration = 5
 	)
 
 	var (
