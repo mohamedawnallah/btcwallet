@@ -40,21 +40,21 @@ jobs:
       - name: Install benchstat
         run: go install golang.org/x/perf/cmd/benchstat@latest
 
-      - name: Run benchmarks on base branch
+      - name: Run benchmarks on target branch
         timeout-minutes: 30
         run: |
           git fetch origin ${{ github.base_ref }}
           git checkout origin/${{ github.base_ref }}
-          make unit-bench pkg=wallet benchmem=1 log=error timeout=0 2>&1 | tee base-bench.txt
-          echo "Base branch benchmarks completed"
+          make unit-bench pkg=wallet benchmem=1 log=error timeout=0 bench='1-After' 2>&1 | tee base-bench.txt
+          echo "Target branch benchmarks completed"
 
-      - name: Run benchmarks on PR branch
+      - name: Run benchmarks on PR #${{ github.event.pull_request.number }} branch
         timeout-minutes: 30
         run: |
           git fetch origin ${{ github.head_ref }}
           git checkout origin/${{ github.head_ref }}
-          make unit-bench pkg=wallet benchmem=1 log=error timeout=0 2>&1 | tee pr-bench.txt
-          echo "PR branch benchmarks completed"
+          make unit-bench pkg=wallet benchmem=1 log=error timeout=0 bench='1-After' 2>&1 | tee pr-bench.txt
+          echo "PR #${{ github.event.pull_request.number }} branch benchmarks completed"
 
       - name: Compare benchmarks with benchstat
         id: benchstat
