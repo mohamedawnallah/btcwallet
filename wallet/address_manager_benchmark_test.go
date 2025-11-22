@@ -431,24 +431,30 @@ func BenchmarkImportPublicKeyAPI(b *testing.B) {
 			addressGrowthPadding, addressGrowth[i])
 
 		b.Run(name, func(b *testing.B) {
-			bw := setupBenchmarkWallet(
-				b, benchmarkWalletConfig{
-					scopes:       scopes,
-					numAccounts:  accountGrowth[i],
-					numAddresses: addressGrowth[i],
-					numWalletTxs: utxoGrowth[i],
-				},
-			)
-
 			b.Run("0-Before", func(b *testing.B) {
+				// Create a fresh wallet to avoid conflicts with
+				// keys potentially imported in previous
+				// benchmarks. Each benchmark needs its own
+				// wallet instance to ensure idempotent
+				// iterations.
+				bw := setupBenchmarkWallet(
+					b, benchmarkWalletConfig{
+						scopes:       scopes,
+						numAccounts:  accountGrowth[i],
+						numAddresses: addressGrowth[i],
+						numWalletTxs: utxoGrowth[i],
+					},
+				)
+
 				b.ReportAllocs()
 				b.ResetTimer()
 
 				iterCount := 0
 				for b.Loop() {
-					// Generate a unique key for each iteration to
-					// avoid in-memory cache collision and for an
-					// idempotent benchmark iteration test.
+					// Generate a unique key for each
+					// iteration to avoid in-memory cache
+					// collision and for an idempotent
+					// benchmark iteration test.
 					seedIndex := accountGrowth[i] + iterCount
 					key, _, _ := generateTestExtendedKey(
 						b, seedIndex,
@@ -466,14 +472,29 @@ func BenchmarkImportPublicKeyAPI(b *testing.B) {
 			})
 
 			b.Run("1-After", func(b *testing.B) {
+				// Create a fresh wallet to avoid conflicts with
+				// keys potentially imported in previous
+				// benchmarks. Each benchmark needs its own
+				// wallet instance to ensure idempotent
+				// iterations.
+				bw := setupBenchmarkWallet(
+					b, benchmarkWalletConfig{
+						scopes:       scopes,
+						numAccounts:  accountGrowth[i],
+						numAddresses: addressGrowth[i],
+						numWalletTxs: utxoGrowth[i],
+					},
+				)
+
 				b.ReportAllocs()
 				b.ResetTimer()
 
 				iterCount := 0
 				for b.Loop() {
-					// Generate a unique key for each iteration to
-					// avoid in-memory cache collision and for an
-					// idempotent benchmark iteration test.
+					// Generate a unique key for each
+					// iteration to avoid in-memory cache
+					// collision and for an idempotent
+					// benchmark iteration test.
 					seedIndex := accountGrowth[i] + iterCount
 					key, _, _ := generateTestExtendedKey(
 						b, seedIndex,
