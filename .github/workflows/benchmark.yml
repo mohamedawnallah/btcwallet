@@ -48,7 +48,7 @@ jobs:
           make unit-bench pkg=wallet benchmem=1 log=error timeout=0 short=1 2>&1 | tee base-bench.txt
           echo "Target branch (${{ github.base_ref }}) benchmarks completed"
 
-      - name: Run benchmarks on PR #${{ github.event.pull_request.number }} branch
+      - name: Run benchmarks on PR ${{ github.event.pull_request.number }} branch
         timeout-minutes: 30
         run: |
           git fetch origin ${{ github.head_ref }}

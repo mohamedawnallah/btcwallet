@@ -135,7 +135,7 @@ func BenchmarkLabelTxAPI(b *testing.B) {
 			// we are testing the overwrite case repeatedly, we only
 			// need to check the final state. That way we are sure
 			// that we are benchmarking the thing right.
-			if testing.Short() {
+			if !testing.Short() {
 				assertLabelTxAPIsEquivalent(
 					b, bw.Wallet, testTxHash, testLabel,
 				)
@@ -277,7 +277,7 @@ func BenchmarkLabelTxAPIConcurrently(b *testing.B) {
 			// we are testing the overwrite case repeatedly, we only
 			// need to check the final state. That way we are sure
 			// that we are benchmarking the thing right.
-			if testing.Short() {
+			if !testing.Short() {
 				assertLabelTxAPIsEquivalent(
 					b, bw.Wallet, testTxHash, testLabel,
 				)

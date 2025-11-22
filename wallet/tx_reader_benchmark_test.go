@@ -633,7 +633,7 @@ func BenchmarkListTxnsAPIConcurrently(b *testing.B) {
 				})
 			})
 
-			if testing.Short() {
+			if !testing.Short() {
 				assertListTxnsAPIsEquivalent(
 					b, bw.Wallet, beforeResult, afterResult,
 				)
