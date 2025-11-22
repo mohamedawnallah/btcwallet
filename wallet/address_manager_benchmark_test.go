@@ -430,8 +430,8 @@ func BenchmarkImportPublicKeyAPI(b *testing.B) {
 			accountGrowthPadding, accountGrowth[i],
 			addressGrowthPadding, addressGrowth[i])
 
-		b.Run(name+"/0-Before", func(b *testing.B) {
-			w := setupBenchmarkWallet(
+		b.Run(name, func(b *testing.B) {
+			bw := setupBenchmarkWallet(
 				b, benchmarkWalletConfig{
 					scopes:       scopes,
 					numAccounts:  accountGrowth[i],
@@ -440,62 +440,55 @@ func BenchmarkImportPublicKeyAPI(b *testing.B) {
 				},
 			)
 
-			b.ReportAllocs()
-			b.ResetTimer()
+			b.Run("0-Before", func(b *testing.B) {
+				b.ReportAllocs()
+				b.ResetTimer()
 
-			iterCount := 0
-			for b.Loop() {
-				// Generate a unique key for each iteration to
-				// avoid in-memory cache collision and for an
-				// idempotent benchmark iteration test.
-				seedIndex := accountGrowth[i] + iterCount
-				key, _, _ := generateTestExtendedKey(
-					b, seedIndex,
-				)
-				pubKey, err := key.ECPubKey()
-				require.NoError(b, err)
+				iterCount := 0
+				for b.Loop() {
+					// Generate a unique key for each iteration to
+					// avoid in-memory cache collision and for an
+					// idempotent benchmark iteration test.
+					seedIndex := accountGrowth[i] + iterCount
+					key, _, _ := generateTestExtendedKey(
+						b, seedIndex,
+					)
+					pubKey, err := key.ECPubKey()
+					require.NoError(b, err)
 
-				err = w.ImportPublicKeyDeprecated(
-					pubKey, addrType,
-				)
-				require.NoError(b, err)
+					err = bw.ImportPublicKeyDeprecated(
+						pubKey, addrType,
+					)
+					require.NoError(b, err)
 
-				iterCount++
-			}
-		})
+					iterCount++
+				}
+			})
 
-		b.Run(name+"/1-After", func(b *testing.B) {
-			w := setupBenchmarkWallet(
-				b, benchmarkWalletConfig{
-					scopes:       scopes,
-					numAccounts:  accountGrowth[i],
-					numAddresses: addressGrowth[i],
-					numWalletTxs: utxoGrowth[i],
-				},
-			)
+			b.Run("1-After", func(b *testing.B) {
+				b.ReportAllocs()
+				b.ResetTimer()
 
-			b.ReportAllocs()
-			b.ResetTimer()
+				iterCount := 0
+				for b.Loop() {
+					// Generate a unique key for each iteration to
+					// avoid in-memory cache collision and for an
+					// idempotent benchmark iteration test.
+					seedIndex := accountGrowth[i] + iterCount
+					key, _, _ := generateTestExtendedKey(
+						b, seedIndex,
+					)
+					pubKey, err := key.ECPubKey()
+					require.NoError(b, err)
 
-			iterCount := 0
-			for b.Loop() {
-				// Generate a unique key for each iteration to
-				// avoid in-memory cache collision and for an
-				// idempotent benchmark iteration test.
-				seedIndex := accountGrowth[i] + iterCount
-				key, _, _ := generateTestExtendedKey(
-					b, seedIndex,
-				)
-				pubKey, err := key.ECPubKey()
-				require.NoError(b, err)
+					err = bw.ImportPublicKey(
+						b.Context(), pubKey, addrType,
+					)
+					require.NoError(b, err)
 
-				err = w.ImportPublicKey(
-					b.Context(), pubKey, addrType,
-				)
-				require.NoError(b, err)
-
-				iterCount++
-			}
+					iterCount++
+				}
+			})
 		})
 	}
 }
@@ -552,8 +545,8 @@ func BenchmarkImportTaprootScriptAPI(b *testing.B) {
 			accountGrowthPadding, accountGrowth[i],
 			addressGrowthPadding, addressGrowth[i])
 
-		b.Run(name+"/0-Before", func(b *testing.B) {
-			w := setupBenchmarkWallet(
+		b.Run(name, func(b *testing.B) {
+			bw := setupBenchmarkWallet(
 				b, benchmarkWalletConfig{
 					scopes:       scopes,
 					numAccounts:  accountGrowth[i],
@@ -562,70 +555,63 @@ func BenchmarkImportTaprootScriptAPI(b *testing.B) {
 				},
 			)
 
-			b.ReportAllocs()
-			b.ResetTimer()
+			b.Run("0-Before", func(b *testing.B) {
+				b.ReportAllocs()
+				b.ResetTimer()
 
-			iterCount := 0
-			for b.Loop() {
-				// Generate a unique tapscript for each
-				// iteration to avoid in-memory cache collision
-				// and for an idempotent benchmark iteration
-				// test.
-				seedIndex := accountGrowth[i] + iterCount
-				key, _, _ := generateTestExtendedKey(
-					b, seedIndex,
-				)
-				pubKey, err := key.ECPubKey()
-				require.NoError(b, err)
+				iterCount := 0
+				for b.Loop() {
+					// Generate a unique tapscript for each
+					// iteration to avoid in-memory cache
+					// collision and for an idempotent
+					// benchmark iteration test.
+					seedIndex := accountGrowth[i] + iterCount
+					key, _, _ := generateTestExtendedKey(
+						b, seedIndex,
+					)
+					pubKey, err := key.ECPubKey()
+					require.NoError(b, err)
 
-				tapscript := generateTestTapscript(b, pubKey)
+					tapscript := generateTestTapscript(b, pubKey)
 
-				syncedTo := w.addrStore.SyncedTo()
-				_, err = w.ImportTaprootScriptDeprecated(
-					scopes[0], &tapscript, &syncedTo,
-					byte(witnessVersion), isSecretScript,
-				)
-				require.NoError(b, err)
+					syncedTo := bw.addrStore.SyncedTo()
+					_, err = bw.ImportTaprootScriptDeprecated(
+						scopes[0], &tapscript, &syncedTo,
+						byte(witnessVersion), isSecretScript,
+					)
+					require.NoError(b, err)
 
-				iterCount++
-			}
-		})
+					iterCount++
+				}
+			})
 
-		b.Run(name+"/1-After", func(b *testing.B) {
-			w := setupBenchmarkWallet(
-				b, benchmarkWalletConfig{
-					scopes:       scopes,
-					numAccounts:  accountGrowth[i],
-					numAddresses: addressGrowth[i],
-					numWalletTxs: utxoGrowth[i],
-				},
-			)
+			b.Run("1-After", func(b *testing.B) {
+				b.ReportAllocs()
+				b.ResetTimer()
 
-			b.ReportAllocs()
-			b.ResetTimer()
+				iterCount := 0
+				for b.Loop() {
+					// Generate a unique tapscript for each
+					// iteration to avoid in-memory cache
+					// collision and for an idempotent
+					// benchmark iteration test.
+					seedIndex := accountGrowth[i] + iterCount
+					key, _, _ := generateTestExtendedKey(
+						b, seedIndex,
+					)
+					pubKey, err := key.ECPubKey()
+					require.NoError(b, err)
 
-			iterCount := 0
-			for b.Loop() {
-				// Generate a unique tapscript for each
-				// iteration to avoid in-memory cache collision
-				// and for an idempotent benchmark iteration
-				// test.
-				seedIndex := accountGrowth[i] + iterCount
-				key, _, _ := generateTestExtendedKey(
-					b, seedIndex,
-				)
-				pubKey, err := key.ECPubKey()
-				require.NoError(b, err)
+					tapscript := generateTestTapscript(b, pubKey)
 
-				tapscript := generateTestTapscript(b, pubKey)
+					_, err = bw.ImportTaprootScript(
+						b.Context(), tapscript,
+					)
+					require.NoError(b, err)
 
-				_, err = w.ImportTaprootScript(
-					b.Context(), tapscript,
-				)
-				require.NoError(b, err)
-
-				iterCount++
-			}
+					iterCount++
+				}
+			})
 		})
 	}
 }
@@ -683,7 +669,7 @@ func BenchmarkScriptForOutputAPI(b *testing.B) {
 			addressGrowthPadding, addressGrowth[i],
 			utxoGrowthPadding, utxoGrowth[i])
 
-		b.Run(name+"/0-Before", func(b *testing.B) {
+		b.Run(name, func(b *testing.B) {
 			bw := setupBenchmarkWallet(
 				b, benchmarkWalletConfig{
 					scopes:       scopes,
@@ -698,41 +684,29 @@ func BenchmarkScriptForOutputAPI(b *testing.B) {
 			)
 			testTxOut := generateTestTxOut(b, testAddr)
 
-			b.ReportAllocs()
-			b.ResetTimer()
+			b.Run("0-Before", func(b *testing.B) {
+				b.ReportAllocs()
+				b.ResetTimer()
 
-			for b.Loop() {
-				_, _, _, err := bw.ScriptForOutputDeprecated(
-					&testTxOut,
-				)
-				require.NoError(b, err)
-			}
-		})
+				for b.Loop() {
+					_, _, _, err := bw.ScriptForOutputDeprecated(
+						&testTxOut,
+					)
+					require.NoError(b, err)
+				}
+			})
 
-		b.Run(name+"/1-After", func(b *testing.B) {
-			bw := setupBenchmarkWallet(
-				b, benchmarkWalletConfig{
-					scopes:       scopes,
-					numAccounts:  accountGrowth[i],
-					numAddresses: addressGrowth[i],
-					numWalletTxs: utxoGrowth[i],
-				},
-			)
+			b.Run("1-After", func(b *testing.B) {
+				b.ReportAllocs()
+				b.ResetTimer()
 
-			testAddr := getTestAddress(
-				b, bw.Wallet, accountGrowth[i],
-			)
-			testTxOut := generateTestTxOut(b, testAddr)
-
-			b.ReportAllocs()
-			b.ResetTimer()
-
-			for b.Loop() {
-				_, err := bw.ScriptForOutput(
-					b.Context(), testTxOut,
-				)
-				require.NoError(b, err)
-			}
+				for b.Loop() {
+					_, err := bw.ScriptForOutput(
+						b.Context(), testTxOut,
+					)
+					require.NoError(b, err)
+				}
+			})
 		})
 	}
 }
