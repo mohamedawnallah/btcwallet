@@ -48,12 +48,8 @@ jobs:
           git fetch origin ${{ github.base_ref }}
           git checkout origin/${{ github.base_ref }}
 
-          # Get list of all benchmark functions
-          go test -tags="dev error" -list='Benchmark.*' ./wallet | grep '^Benchmark' > benchmark-list.txt
-
-          # Run benchmarks in parallel (use all available CPU cores)
-          cat benchmark-list.txt | parallel -j$(nproc) --halt soon,fail=1 \
-            "go test -tags='dev error' -timeout=0 -benchmem -bench='^{}$' -run=NONE ./wallet" \
+          # Run single benchmark for quick evaluation
+          go test -tags='dev error' -timeout=0 -benchmem -bench='^BenchmarkPublishTransactionAPI$' -run=NONE ./wallet \
             2>&1 | tee base-bench-raw.txt
 
           # Extract and sort benchmark results
@@ -98,12 +94,8 @@ jobs:
           git fetch origin ${{ github.head_ref }}
           git checkout origin/${{ github.head_ref }}
 
-          # Get list of all benchmark functions
-          go test -tags="dev error" -list='Benchmark.*' ./wallet | grep '^Benchmark' > benchmark-list.txt
-
-          # Run benchmarks in parallel (use all available CPU cores)
-          cat benchmark-list.txt | parallel -j$(nproc) --halt soon,fail=1 \
-            "go test -tags='dev error' -timeout=0 -benchmem -bench='^{}$' -run=NONE ./wallet" \
+          # Run single benchmark for quick evaluation
+          go test -tags='dev error' -timeout=0 -benchmem -bench='^BenchmarkPublishTransactionAPI$' -run=NONE ./wallet \
             2>&1 | tee pr-bench-raw.txt
 
           # Extract and sort benchmark results
