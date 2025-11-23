@@ -129,6 +129,11 @@ jobs:
           go install golang.org/x/perf/cmd/benchstat@latest
           go install github.com/goptics/vizb@latest
 
+      - name: Install Playwright for screenshots
+        run: |
+          npm install -g playwright
+          npx playwright install chromium
+
       - name: Download base benchmark results
         uses: actions/download-artifact@v4
         with:
@@ -268,9 +273,37 @@ jobs:
           echo "" >> benchstat-output.txt
           echo "</details>" >> benchstat-output.txt
 
-          # Generate vizb charts
+          # Generate vizb charts - need to create a script since vizb runs benchmarks internally
           echo "Generating visual benchmark reports with vizb..."
-          vizb -b base-bench.txt -c pr-bench.txt -o vizb-report.html || echo "vizb generation failed, continuing..."
+
+          # Create a Node.js script to extract charts from vizb HTML
+          cat > extract-charts.js << 'EXTRACT_SCRIPT'
+          const { chromium } = require('playwright');
+
+          (async () => {
+            const browser = await chromium.launch();
+            const page = await browser.newPage();
+
+            // Load the vizb HTML report
+            await page.goto('file://' + process.cwd() + '/vizb-report.html');
+            await page.waitForTimeout(2000); // Wait for charts to render
+
+            // Get all canvas elements (one for each chart)
+            const canvases = await page.$$('canvas');
+
+            if (canvases.length >= 3) {
+              // Screenshot each chart
+              await canvases[0].screenshot({ path: 'chart-execution-time.png' });
+              await canvases[1].screenshot({ path: 'chart-memory-usage.png' });
+              await canvases[2].screenshot({ path: 'chart-allocations.png' });
+              console.log('Extracted 3 charts successfully');
+            } else {
+              console.log('Found ' + canvases.length + ' canvases');
+            }
+
+            await browser.close();
+          })();
+          EXTRACT_SCRIPT
 
           # Save for PR comment
           cat benchstat-output.txt > $GITHUB_STEP_SUMMARY
