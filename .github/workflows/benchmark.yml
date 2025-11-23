@@ -49,7 +49,7 @@ jobs:
           git checkout origin/${{ github.base_ref }}
 
           # Run single benchmark for quick evaluation
-          go test -tags='dev error' -timeout=0 -benchmem -short -bench='^BenchmarkPublishTransactionAPI' -run=NONE ./wallet \
+          go test -tags='dev error' -timeout=0 -benchmem -short -bench='^BenchmarkBroadcastAPI' -run=NONE ./wallet \
             2>&1 | tee base-bench-raw.txt
 
           # Extract and sort benchmark results
@@ -95,7 +95,7 @@ jobs:
           git checkout origin/${{ github.head_ref }}
 
           # Run single benchmark for quick evaluation
-          go test -tags='dev error' -timeout=0 -benchmem -short -bench='^BenchmarkPublishTransactionAPI' -run=NONE ./wallet \
+          go test -tags='dev error' -timeout=0 -benchmem -short -bench='^BenchmarkBroadcastAPI' -run=NONE ./wallet \
             2>&1 | tee pr-bench-raw.txt
 
           # Extract and sort benchmark results
