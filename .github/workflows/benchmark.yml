@@ -124,8 +124,10 @@ jobs:
         with:
           go-version: '${{ env.GO_VERSION }}'
 
-      - name: Install benchstat
-        run: go install golang.org/x/perf/cmd/benchstat@latest
+      - name: Install benchstat and vizb
+        run: |
+          go install golang.org/x/perf/cmd/benchstat@latest
+          go install github.com/goptics/vizb@latest
 
       - name: Download base benchmark results
         uses: actions/download-artifact@v4
@@ -161,19 +163,86 @@ jobs:
             echo "" >> benchstat-output.txt
           fi
 
-          # Count improvements and regressions
-          IMPROVEMENTS=$(grep -c '\-[0-9]\+\.[0-9]\+%' benchstat-table.txt || echo "0")
-          REGRESSIONS=$(grep -c '\+[0-9]\+\.[0-9]\+%' benchstat-table.txt || echo "0")
-          NO_CHANGE=$(grep -c '~' benchstat-table.txt || echo "0")
+          # Performance regression thresholds
+          MAX_TIME_REGRESSION=10
+          MAX_ALLOC_BYTES_REGRESSION=10
+          MAX_ALLOC_COUNT_REGRESSION=10
+
+          # Count improvements and regressions by metric
+          TIME_IMPROVEMENTS=$(grep 'sec/op' benchstat-table.txt | grep -c '\-[0-9]\+\.[0-9]\+%' || echo "0")
+          TIME_REGRESSIONS=$(grep 'sec/op' benchstat-table.txt | grep -c '\+[0-9]\+\.[0-9]\+%' || echo "0")
+          TIME_REGRESSIONS_BEYOND_THRESHOLD=0
+
+          MEM_IMPROVEMENTS=$(grep 'B/op' benchstat-table.txt | grep -c '\-[0-9]\+\.[0-9]\+%' || echo "0")
+          MEM_REGRESSIONS=$(grep 'B/op' benchstat-table.txt | grep -c '\+[0-9]\+\.[0-9]\+%' || echo "0")
+          MEM_REGRESSIONS_BEYOND_THRESHOLD=0
+
+          ALLOC_IMPROVEMENTS=$(grep 'allocs/op' benchstat-table.txt | grep -c '\-[0-9]\+\.[0-9]\+%' || echo "0")
+          ALLOC_REGRESSIONS=$(grep 'allocs/op' benchstat-table.txt | grep -c '\+[0-9]\+\.[0-9]\+%' || echo "0")
+          ALLOC_REGRESSIONS_BEYOND_THRESHOLD=0
+
+          # Count regressions beyond threshold for time
+          while IFS= read -r line; do
+            if [[ $line =~ sec/op ]] && [[ $line =~ \+([0-9]+\.[0-9]+)% ]]; then
+              delta="${BASH_REMATCH[1]}"
+              if (( $(echo "$delta > $MAX_TIME_REGRESSION" | bc -l) )); then
+                ((TIME_REGRESSIONS_BEYOND_THRESHOLD++))
+              fi
+            fi
+          done < benchstat-table.txt
+
+          # Count regressions beyond threshold for memory
+          while IFS= read -r line; do
+            if [[ $line =~ B/op ]] && [[ $line =~ \+([0-9]+\.[0-9]+)% ]]; then
+              delta="${BASH_REMATCH[1]}"
+              if (( $(echo "$delta > $MAX_ALLOC_BYTES_REGRESSION" | bc -l) )); then
+                ((MEM_REGRESSIONS_BEYOND_THRESHOLD++))
+              fi
+            fi
+          done < benchstat-table.txt
+
+          # Count regressions beyond threshold for allocations
+          while IFS= read -r line; do
+            if [[ $line =~ allocs/op ]] && [[ $line =~ \+([0-9]+\.[0-9]+)% ]]; then
+              delta="${BASH_REMATCH[1]}"
+              if (( $(echo "$delta > $MAX_ALLOC_COUNT_REGRESSION" | bc -l) )); then
+                ((ALLOC_REGRESSIONS_BEYOND_THRESHOLD++))
+              fi
+            fi
+          done < benchstat-table.txt
 
           echo "**Changes:**" >> benchstat-output.txt
-          echo "- ✅ **$IMPROVEMENTS** benchmarks improved (faster/less memory)" >> benchstat-output.txt
-          echo "- ⚠️ **$REGRESSIONS** benchmarks regressed (slower/more memory)" >> benchstat-output.txt
-          echo "- ➖ **$NO_CHANGE** benchmarks unchanged" >> benchstat-output.txt
+          echo "" >> benchstat-output.txt
+
+          # Show regressions beyond threshold if any
+          if [ "$TIME_REGRESSIONS_BEYOND_THRESHOLD" -gt 0 ] || [ "$MEM_REGRESSIONS_BEYOND_THRESHOLD" -gt 0 ] || [ "$ALLOC_REGRESSIONS_BEYOND_THRESHOLD" -gt 0 ]; then
+            echo "🔴 **Regressions Beyond Threshold (>${MAX_TIME_REGRESSION}%):**" >> benchstat-output.txt
+            if [ "$TIME_REGRESSIONS_BEYOND_THRESHOLD" -gt 0 ]; then
+              echo "  - **${TIME_REGRESSIONS_BEYOND_THRESHOLD}** benchmarks significantly slower (time)" >> benchstat-output.txt
+            fi
+            if [ "$MEM_REGRESSIONS_BEYOND_THRESHOLD" -gt 0 ]; then
+              echo "  - **${MEM_REGRESSIONS_BEYOND_THRESHOLD}** benchmarks significantly more memory (bytes)" >> benchstat-output.txt
+            fi
+            if [ "$ALLOC_REGRESSIONS_BEYOND_THRESHOLD" -gt 0 ]; then
+              echo "  - **${ALLOC_REGRESSIONS_BEYOND_THRESHOLD}** benchmarks significantly more allocations" >> benchstat-output.txt
+            fi
+            echo "" >> benchstat-output.txt
+          fi
+
+          echo "⚠️ **Regressions:**" >> benchstat-output.txt
+          echo "  - **${TIME_REGRESSIONS}** benchmarks slower (time)" >> benchstat-output.txt
+          echo "  - **${MEM_REGRESSIONS}** benchmarks more memory (bytes)" >> benchstat-output.txt
+          echo "  - **${ALLOC_REGRESSIONS}** benchmarks more allocations" >> benchstat-output.txt
+          echo "" >> benchstat-output.txt
+
+          echo "✅ **Improvements:**" >> benchstat-output.txt
+          echo "  - **${TIME_IMPROVEMENTS}** benchmarks faster (time)" >> benchstat-output.txt
+          echo "  - **${MEM_IMPROVEMENTS}** benchmarks less memory (bytes)" >> benchstat-output.txt
+          echo "  - **${ALLOC_IMPROVEMENTS}** benchmarks fewer allocations" >> benchstat-output.txt
           echo "" >> benchstat-output.txt
 
           # Add legend
-          echo "### 📖 How to Read Results" >> benchstat-output.txt
+          echo "### 📖 How to Interpret Results" >> benchstat-output.txt
           echo "" >> benchstat-output.txt
           echo "**Symbols:**" >> benchstat-output.txt
           echo "- \`~\` = no significant difference" >> benchstat-output.txt
@@ -198,6 +267,10 @@ jobs:
           echo '```' >> benchstat-output.txt
           echo "" >> benchstat-output.txt
           echo "</details>" >> benchstat-output.txt
+
+          # Generate vizb charts
+          echo "Generating visual benchmark reports with vizb..."
+          vizb -b base-bench.txt -c pr-bench.txt -o vizb-report.html || echo "vizb generation failed, continuing..."
 
           # Save for PR comment
           cat benchstat-output.txt > $GITHUB_STEP_SUMMARY
@@ -312,8 +385,9 @@ jobs:
               '- Benchmarks run in parallel on separate GitHub runners\n' +
               '- Statistical significance requires 6+ samples; `±∞` indicates high variance\n' +
               '- Performance regression threshold: **10%** for time, memory, and allocations\n' +
+              '- 📊 Visual report available in workflow artifacts (vizb-report.html)\n' +
               '\n' +
-              '_Generated by [benchmark.yml](.github/workflows/benchmark.yml) using [benchstat](https://pkg.go.dev/golang.org/x/perf/cmd/benchstat)_';
+              '_Generated by [benchmark.yml](.github/workflows/benchmark.yml) using [benchstat](https://pkg.go.dev/golang.org/x/perf/cmd/benchstat) and [vizb](https://github.com/goptics/vizb)_';
 
             if (botComment) {
               // Update existing comment
@@ -340,4 +414,5 @@ jobs:
           path: |
             benchstat-output.txt
             benchstat-raw.txt
+            vizb-report.html
           retention-days: 30
