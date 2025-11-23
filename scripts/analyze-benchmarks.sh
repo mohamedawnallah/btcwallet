@@ -7,7 +7,8 @@ set -e
 BASE_FILE="${1:-base-bench.txt}"
 PR_FILE="${2:-pr-bench.txt}"
 OUTPUT_FILE="${3:-summary.txt}"
-THRESHOLD="${4:-10}"
+REGRESSION_THRESHOLD="${4:-10}"
+IMPROVEMENT_THRESHOLD="${5:-30}"
 
 # Run benchstat
 benchstat "$BASE_FILE" "$PR_FILE" > benchstat-output.txt
@@ -26,7 +27,7 @@ echo "</details>" >> "$OUTPUT_FILE"
 echo "" >> "$OUTPUT_FILE"
 
 # Check for regressions beyond threshold
-echo "### 🔴 Regressions Beyond ${THRESHOLD}% Threshold" >> "$OUTPUT_FILE"
+echo "### 🔴 Regressions Beyond ${REGRESSION_THRESHOLD}% Threshold" >> "$OUTPUT_FILE"
 echo "" >> "$OUTPUT_FILE"
 
 REGRESSIONS_FOUND=false
@@ -34,7 +35,7 @@ REGRESSIONS_FOUND=false
 while IFS= read -r line; do
   if [[ $line =~ \+([0-9]+\.[0-9]+)% ]]; then
     delta="${BASH_REMATCH[1]}"
-    if (( $(echo "$delta > $THRESHOLD" | bc -l) )); then
+    if (( $(echo "$delta > $REGRESSION_THRESHOLD" | bc -l) )); then
       echo "- $line" >> "$OUTPUT_FILE"
       REGRESSIONS_FOUND=true
     fi
@@ -47,7 +48,7 @@ fi
 echo "" >> "$OUTPUT_FILE"
 
 # Show significant improvements
-echo "### ✅ Significant Improvements" >> "$OUTPUT_FILE"
+echo "### ✅ Significant Improvements (≥${IMPROVEMENT_THRESHOLD}%)" >> "$OUTPUT_FILE"
 echo "" >> "$OUTPUT_FILE"
 
 IMPROVEMENTS_FOUND=false
@@ -55,7 +56,7 @@ IMPROVEMENTS_FOUND=false
 while IFS= read -r line; do
   if [[ $line =~ \-([0-9]+\.[0-9]+)% ]]; then
     delta="${BASH_REMATCH[1]}"
-    if (( $(echo "$delta > $THRESHOLD" | bc -l) )); then
+    if (( $(echo "$delta >= $IMPROVEMENT_THRESHOLD" | bc -l) )); then
       echo "- $line" >> "$OUTPUT_FILE"
       IMPROVEMENTS_FOUND=true
     fi
@@ -63,7 +64,7 @@ while IFS= read -r line; do
 done < benchstat-output.txt
 
 if [ "$IMPROVEMENTS_FOUND" = false ]; then
-  echo "None significant (>${THRESHOLD}%)" >> "$OUTPUT_FILE"
+  echo "None significant (≥${IMPROVEMENT_THRESHOLD}%)" >> "$OUTPUT_FILE"
 fi
 
 # Show summary

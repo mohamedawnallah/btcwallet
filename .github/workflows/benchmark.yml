@@ -75,7 +75,8 @@ jobs:
       - name: Compare and analyze results
         run: |
           chmod +x scripts/analyze-benchmarks.sh
-          scripts/analyze-benchmarks.sh base-bench.txt pr-bench.txt summary.txt 10
+          # analyze-benchmarks.sh <base> <pr> <output> <regression_threshold> <improvement_threshold>
+          scripts/analyze-benchmarks.sh base-bench.txt pr-bench.txt summary.txt 10 30
 
       - name: Comment PR with results
         if: github.event_name == 'pull_request'
