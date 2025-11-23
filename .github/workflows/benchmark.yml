@@ -58,7 +58,7 @@ jobs:
           git fetch origin $BASE_REF
           git checkout origin/$BASE_REF
 
-          go test -tags='dev error' -timeout=0 -benchmem -bench='^BenchmarkBroadcastAPI' -run=NONE ./wallet \
+          go test -count=6 -tags='dev error' -timeout=0 -benchmem -bench='^BenchmarkBroadcastAPI' -run=NONE ./wallet \
             2>&1 | tee base-bench-raw.txt
 
           grep '^Benchmark' base-bench-raw.txt | sort > base-bench.txt
@@ -74,7 +74,7 @@ jobs:
           git fetch origin $HEAD_REF
           git checkout origin/$HEAD_REF
 
-          go test -tags='dev error' -timeout=0 -benchmem -bench='^BenchmarkBroadcastAPI' -run=NONE ./wallet \
+          go test -count=6 -tags='dev error' -timeout=0 -benchmem -bench='^BenchmarkBroadcastAPI' -run=NONE ./wallet \
             2>&1 | tee pr-bench-raw.txt
 
           grep '^Benchmark' pr-bench-raw.txt | sort > pr-bench.txt
