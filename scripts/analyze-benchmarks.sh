@@ -16,17 +16,7 @@ benchstat "$BASE_FILE" "$PR_FILE" > benchstat-output.txt
 echo "## 📊 Benchmark Results" > "$OUTPUT_FILE"
 echo "" >> "$OUTPUT_FILE"
 
-# Show benchstat results in collapsible section
-echo "<details>" >> "$OUTPUT_FILE"
-echo "<summary>📋 Detailed Comparison</summary>" >> "$OUTPUT_FILE"
-echo "" >> "$OUTPUT_FILE"
-echo '```' >> "$OUTPUT_FILE"
-cat benchstat-output.txt >> "$OUTPUT_FILE"
-echo '```' >> "$OUTPUT_FILE"
-echo "</details>" >> "$OUTPUT_FILE"
-echo "" >> "$OUTPUT_FILE"
-
-# Check for regressions beyond threshold
+# Check for regressions beyond threshold - SHOW FIRST
 echo "### 🔴 Regressions Beyond ${REGRESSION_THRESHOLD}% Threshold" >> "$OUTPUT_FILE"
 echo "" >> "$OUTPUT_FILE"
 
@@ -47,7 +37,7 @@ if [ "$REGRESSIONS_FOUND" = false ]; then
 fi
 echo "" >> "$OUTPUT_FILE"
 
-# Show significant improvements
+# Show significant improvements - SHOW SECOND
 echo "### ✅ Significant Improvements (≥${IMPROVEMENT_THRESHOLD}%)" >> "$OUTPUT_FILE"
 echo "" >> "$OUTPUT_FILE"
 
@@ -66,6 +56,16 @@ done < benchstat-output.txt
 if [ "$IMPROVEMENTS_FOUND" = false ]; then
   echo "None significant (≥${IMPROVEMENT_THRESHOLD}%)" >> "$OUTPUT_FILE"
 fi
+echo "" >> "$OUTPUT_FILE"
+
+# Show benchstat results in collapsible section - SHOW LAST
+echo "<details>" >> "$OUTPUT_FILE"
+echo "<summary>📋 Detailed Comparison</summary>" >> "$OUTPUT_FILE"
+echo "" >> "$OUTPUT_FILE"
+echo '```' >> "$OUTPUT_FILE"
+cat benchstat-output.txt >> "$OUTPUT_FILE"
+echo '```' >> "$OUTPUT_FILE"
+echo "</details>" >> "$OUTPUT_FILE"
 
 # Show summary
 cat "$OUTPUT_FILE"
