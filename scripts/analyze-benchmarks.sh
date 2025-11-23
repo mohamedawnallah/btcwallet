@@ -33,7 +33,7 @@ while IFS= read -r line; do
 done < benchstat-output.txt
 
 if [ "$REGRESSIONS_FOUND" = false ]; then
-  echo "✅ None" >> "$OUTPUT_FILE"
+  echo "👍 None" >> "$OUTPUT_FILE"
 fi
 echo "" >> "$OUTPUT_FILE"
 
