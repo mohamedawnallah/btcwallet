@@ -6,6 +6,13 @@ on:
       - "*"
   workflow_dispatch:
 
+permissions:
+  # Read permissions to be able checkout code.
+  contents: read
+
+  # Write permissions to be able to comment on PRs.
+  pull-requests: write
+
 defaults:
   run:
     shell: bash
