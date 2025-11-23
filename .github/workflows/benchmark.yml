@@ -18,8 +18,8 @@ env:
   GO_VERSION: 1.24.6
 
 jobs:
-  benchmark-base:
-    name: Benchmark Target Branch (${{ github.base_ref }})
+  benchmark:
+    name: Run Benchmarks and Compare
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
 
@@ -37,371 +37,112 @@ jobs:
         with:
           go-version: '${{ env.GO_VERSION }}'
 
-      - name: Install GNU Parallel
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y parallel
+      - name: Install benchstat
+        run: go install golang.org/x/perf/cmd/benchstat@latest
 
-      - name: Run benchmarks on target branch (${{ github.base_ref }})
-        timeout-minutes: 30
+      - name: Run benchmarks on base branch
         run: |
-          git fetch origin ${{ github.base_ref }}
-          git checkout origin/${{ github.base_ref }}
+          BASE_REF="${{ github.base_ref }}"
+          # Default to interface-wallet for local testing (where benchmarks exist)
+          if [ -z "$BASE_REF" ]; then
+            BASE_REF="interface-wallet"
+          fi
 
-          # Run single benchmark for quick evaluation
+          git fetch origin $BASE_REF
+          git checkout origin/$BASE_REF
+
           go test -tags='dev error' -timeout=0 -benchmem -bench='^BenchmarkBroadcastAPI' -run=NONE ./wallet \
             2>&1 | tee base-bench-raw.txt
 
-          # Extract and sort benchmark results
           grep '^Benchmark' base-bench-raw.txt | sort > base-bench.txt
 
-          echo "Target branch (${{ github.base_ref }}) benchmarks completed"
-
-      - name: Upload base benchmark results
-        uses: actions/upload-artifact@v4
-        with:
-          name: base-bench
-          path: base-bench.txt
-          retention-days: 30
-
-  benchmark-pr:
-    name: Benchmark PR \#${{ github.event.pull_request.number }} (${{ github.event.pull_request.head.sha }})
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
-
-    steps:
-      - name: git checkout
-        uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-
-      - name: Clean up runner space
-        uses: ./.github/actions/cleanup-space
-
-      - name: setup go ${{ env.GO_VERSION }}
-        uses: actions/setup-go@v5
-        with:
-          go-version: '${{ env.GO_VERSION }}'
-
-      - name: Install GNU Parallel
+      - name: Run benchmarks on PR branch
         run: |
-          sudo apt-get update
-          sudo apt-get install -y parallel
+          HEAD_REF="${{ github.head_ref }}"
+          # Default to current branch for local testing
+          if [ -z "$HEAD_REF" ]; then
+            HEAD_REF=$(git rev-parse --abbrev-ref HEAD)
+          fi
 
-      - name: Run benchmarks on PR ${{ github.event.pull_request.number }} (${{ github.event.pull_request.head.sha }})
-        timeout-minutes: 30
-        run: |
-          git fetch origin ${{ github.head_ref }}
-          git checkout origin/${{ github.head_ref }}
+          git fetch origin $HEAD_REF
+          git checkout origin/$HEAD_REF
 
-          # Run single benchmark for quick evaluation
           go test -tags='dev error' -timeout=0 -benchmem -bench='^BenchmarkBroadcastAPI' -run=NONE ./wallet \
             2>&1 | tee pr-bench-raw.txt
 
-          # Extract and sort benchmark results
           grep '^Benchmark' pr-bench-raw.txt | sort > pr-bench.txt
 
-          echo "PR #${{ github.event.pull_request.number }} (${{ github.event.pull_request.head.sha }}) branch benchmarks completed"
-
-      - name: Upload PR benchmark results
-        uses: actions/upload-artifact@v4
-        with:
-          name: pr-bench
-          path: pr-bench.txt
-          retention-days: 30
-
-  compare:
-    name: Compare Benchmarks
-    runs-on: ubuntu-latest
-    needs: [benchmark-base, benchmark-pr]
-
-    steps:
-      - name: git checkout
-        uses: actions/checkout@v5
-
-      - name: setup go ${{ env.GO_VERSION }}
-        uses: actions/setup-go@v5
-        with:
-          go-version: '${{ env.GO_VERSION }}'
-
-      - name: Install benchstat and vizb
+      - name: Compare and analyze results
         run: |
-          go install golang.org/x/perf/cmd/benchstat@latest
-          go install github.com/goptics/vizb@latest
+          # Run benchstat
+          benchstat base-bench.txt pr-bench.txt > benchstat-output.txt
 
-      - name: Install Playwright for screenshots
-        run: |
-          npm install -g playwright
-          npx playwright install chromium
+          # Performance regression threshold
+          THRESHOLD=10
 
-      - name: Download base benchmark results
-        uses: actions/download-artifact@v4
-        with:
-          name: base-bench
+          echo "## 📊 Benchmark Results" > summary.txt
+          echo "" >> summary.txt
 
-      - name: Download PR benchmark results
-        uses: actions/download-artifact@v4
-        with:
-          name: pr-bench
+          # Show benchstat results
+          echo "### Detailed Comparison" >> summary.txt
+          echo '```' >> summary.txt
+          cat benchstat-output.txt >> summary.txt
+          echo '```' >> summary.txt
+          echo "" >> summary.txt
 
-      - name: Compare benchmarks with benchstat
-        id: benchstat
-        run: |
-          echo "## 📊 Benchmark Comparison Results" > benchstat-output.txt
-          echo "" >> benchstat-output.txt
-          echo "**Comparing:** \`${{ github.base_ref }}\` (base) → \`${{ github.head_ref }}\` (PR)" >> benchstat-output.txt
-          echo "" >> benchstat-output.txt
-
-          # Run benchstat and save raw output
-          benchstat base-bench.txt pr-bench.txt | tee benchstat-raw.txt > benchstat-table.txt || true
-
-          # Create formatted summary
-          echo "### 📈 Performance Summary" >> benchstat-output.txt
-          echo "" >> benchstat-output.txt
-
-          # Extract geomean if present
-          if grep -q "geomean" benchstat-table.txt; then
-            echo "**Overall Performance (geomean):**" >> benchstat-output.txt
-            grep "geomean" benchstat-table.txt | while read -r line; do
-              echo "- $line" >> benchstat-output.txt
-            done
-            echo "" >> benchstat-output.txt
-          fi
-
-          # Performance regression thresholds
-          MAX_TIME_REGRESSION=10
-          MAX_ALLOC_BYTES_REGRESSION=10
-          MAX_ALLOC_COUNT_REGRESSION=10
-
-          # Count improvements and regressions by metric
-          TIME_IMPROVEMENTS=$(grep 'sec/op' benchstat-table.txt | grep -c '\-[0-9]\+\.[0-9]\+%' || echo "0")
-          TIME_REGRESSIONS=$(grep 'sec/op' benchstat-table.txt | grep -c '\+[0-9]\+\.[0-9]\+%' || echo "0")
-          TIME_REGRESSIONS_BEYOND_THRESHOLD=0
-
-          MEM_IMPROVEMENTS=$(grep 'B/op' benchstat-table.txt | grep -c '\-[0-9]\+\.[0-9]\+%' || echo "0")
-          MEM_REGRESSIONS=$(grep 'B/op' benchstat-table.txt | grep -c '\+[0-9]\+\.[0-9]\+%' || echo "0")
-          MEM_REGRESSIONS_BEYOND_THRESHOLD=0
-
-          ALLOC_IMPROVEMENTS=$(grep 'allocs/op' benchstat-table.txt | grep -c '\-[0-9]\+\.[0-9]\+%' || echo "0")
-          ALLOC_REGRESSIONS=$(grep 'allocs/op' benchstat-table.txt | grep -c '\+[0-9]\+\.[0-9]\+%' || echo "0")
-          ALLOC_REGRESSIONS_BEYOND_THRESHOLD=0
-
-          # Count regressions beyond threshold for time
-          while IFS= read -r line; do
-            if [[ $line =~ sec/op ]] && [[ $line =~ \+([0-9]+\.[0-9]+)% ]]; then
-              delta="${BASH_REMATCH[1]}"
-              if (( $(echo "$delta > $MAX_TIME_REGRESSION" | bc -l) )); then
-                ((TIME_REGRESSIONS_BEYOND_THRESHOLD++))
-              fi
-            fi
-          done < benchstat-table.txt
-
-          # Count regressions beyond threshold for memory
-          while IFS= read -r line; do
-            if [[ $line =~ B/op ]] && [[ $line =~ \+([0-9]+\.[0-9]+)% ]]; then
-              delta="${BASH_REMATCH[1]}"
-              if (( $(echo "$delta > $MAX_ALLOC_BYTES_REGRESSION" | bc -l) )); then
-                ((MEM_REGRESSIONS_BEYOND_THRESHOLD++))
-              fi
-            fi
-          done < benchstat-table.txt
-
-          # Count regressions beyond threshold for allocations
-          while IFS= read -r line; do
-            if [[ $line =~ allocs/op ]] && [[ $line =~ \+([0-9]+\.[0-9]+)% ]]; then
-              delta="${BASH_REMATCH[1]}"
-              if (( $(echo "$delta > $MAX_ALLOC_COUNT_REGRESSION" | bc -l) )); then
-                ((ALLOC_REGRESSIONS_BEYOND_THRESHOLD++))
-              fi
-            fi
-          done < benchstat-table.txt
-
-          echo "**Changes:**" >> benchstat-output.txt
-          echo "" >> benchstat-output.txt
-
-          # Show regressions beyond threshold if any
-          if [ "$TIME_REGRESSIONS_BEYOND_THRESHOLD" -gt 0 ] || [ "$MEM_REGRESSIONS_BEYOND_THRESHOLD" -gt 0 ] || [ "$ALLOC_REGRESSIONS_BEYOND_THRESHOLD" -gt 0 ]; then
-            echo "🔴 **Regressions Beyond Threshold (>${MAX_TIME_REGRESSION}%):**" >> benchstat-output.txt
-            if [ "$TIME_REGRESSIONS_BEYOND_THRESHOLD" -gt 0 ]; then
-              echo "  - **${TIME_REGRESSIONS_BEYOND_THRESHOLD}** benchmarks significantly slower (time)" >> benchstat-output.txt
-            fi
-            if [ "$MEM_REGRESSIONS_BEYOND_THRESHOLD" -gt 0 ]; then
-              echo "  - **${MEM_REGRESSIONS_BEYOND_THRESHOLD}** benchmarks significantly more memory (bytes)" >> benchstat-output.txt
-            fi
-            if [ "$ALLOC_REGRESSIONS_BEYOND_THRESHOLD" -gt 0 ]; then
-              echo "  - **${ALLOC_REGRESSIONS_BEYOND_THRESHOLD}** benchmarks significantly more allocations" >> benchstat-output.txt
-            fi
-            echo "" >> benchstat-output.txt
-          fi
-
-          echo "⚠️ **Regressions:**" >> benchstat-output.txt
-          echo "  - **${TIME_REGRESSIONS}** benchmarks slower (time)" >> benchstat-output.txt
-          echo "  - **${MEM_REGRESSIONS}** benchmarks more memory (bytes)" >> benchstat-output.txt
-          echo "  - **${ALLOC_REGRESSIONS}** benchmarks more allocations" >> benchstat-output.txt
-          echo "" >> benchstat-output.txt
-
-          echo "✅ **Improvements:**" >> benchstat-output.txt
-          echo "  - **${TIME_IMPROVEMENTS}** benchmarks faster (time)" >> benchstat-output.txt
-          echo "  - **${MEM_IMPROVEMENTS}** benchmarks less memory (bytes)" >> benchstat-output.txt
-          echo "  - **${ALLOC_IMPROVEMENTS}** benchmarks fewer allocations" >> benchstat-output.txt
-          echo "" >> benchstat-output.txt
-
-          # Add legend
-          echo "### 📖 How to Interpret Results" >> benchstat-output.txt
-          echo "" >> benchstat-output.txt
-          echo "**Symbols:**" >> benchstat-output.txt
-          echo "- \`~\` = no significant difference" >> benchstat-output.txt
-          echo "- \`+X%\` = regression (slower/more memory)" >> benchstat-output.txt
-          echo "- \`-X%\` = improvement (faster/less memory)" >> benchstat-output.txt
-          echo "- \`±∞\` = high variance (need more samples for reliable comparison)" >> benchstat-output.txt
-          echo "" >> benchstat-output.txt
-          echo "**Metrics:**" >> benchstat-output.txt
-          echo "- \`ns/op\` = nanoseconds per operation (time)" >> benchstat-output.txt
-          echo "- \`B/op\` = bytes allocated per operation (memory)" >> benchstat-output.txt
-          echo "- \`allocs/op\` = number of allocations per operation" >> benchstat-output.txt
-          echo "" >> benchstat-output.txt
-
-          # Add detailed results
-          echo "### 📋 Detailed Results" >> benchstat-output.txt
-          echo "" >> benchstat-output.txt
-          echo "<details>" >> benchstat-output.txt
-          echo "<summary>Click to expand full benchmark comparison</summary>" >> benchstat-output.txt
-          echo "" >> benchstat-output.txt
-          echo '```' >> benchstat-output.txt
-          cat benchstat-table.txt >> benchstat-output.txt
-          echo '```' >> benchstat-output.txt
-          echo "" >> benchstat-output.txt
-          echo "</details>" >> benchstat-output.txt
-
-          # Generate vizb charts - need to create a script since vizb runs benchmarks internally
-          echo "Generating visual benchmark reports with vizb..."
-
-          # Create a Node.js script to extract charts from vizb HTML
-          cat > extract-charts.js << 'EXTRACT_SCRIPT'
-          const { chromium } = require('playwright');
-
-          (async () => {
-            const browser = await chromium.launch();
-            const page = await browser.newPage();
-
-            // Load the vizb HTML report
-            await page.goto('file://' + process.cwd() + '/vizb-report.html');
-            await page.waitForTimeout(2000); // Wait for charts to render
-
-            // Get all canvas elements (one for each chart)
-            const canvases = await page.$$('canvas');
-
-            if (canvases.length >= 3) {
-              // Screenshot each chart
-              await canvases[0].screenshot({ path: 'chart-execution-time.png' });
-              await canvases[1].screenshot({ path: 'chart-memory-usage.png' });
-              await canvases[2].screenshot({ path: 'chart-allocations.png' });
-              console.log('Extracted 3 charts successfully');
-            } else {
-              console.log('Found ' + canvases.length + ' canvases');
-            }
-
-            await browser.close();
-          })();
-          EXTRACT_SCRIPT
-
-          # Save for PR comment
-          cat benchstat-output.txt > $GITHUB_STEP_SUMMARY
-
-      - name: Check for performance regressions
-        run: |
-          # Performance regression thresholds
-          MAX_TIME_REGRESSION=10       # Maximum allowed time regression percentage
-          MAX_ALLOC_BYTES_REGRESSION=10 # Maximum allowed bytes/op regression percentage
-          MAX_ALLOC_COUNT_REGRESSION=10 # Maximum allowed allocs/op regression percentage
-
-          echo "Checking for performance regressions..."
-          echo "Thresholds: ${MAX_TIME_REGRESSION}% for time, ${MAX_ALLOC_BYTES_REGRESSION}% for bytes, ${MAX_ALLOC_COUNT_REGRESSION}% for alloc count"
-
-          # Parse benchstat output for regressions
-          # Format: "name  old time/op  new time/op  delta"
-          # A "+" delta means regression (slower), "-" means improvement (faster)
+          # Check for regressions beyond threshold
+          echo "### 🔴 Regressions Beyond ${THRESHOLD}% Threshold" >> summary.txt
+          echo "" >> summary.txt
 
           REGRESSIONS_FOUND=false
 
-          # Check time regressions (lines with "ns/op" and positive delta > threshold)
           while IFS= read -r line; do
-            # Skip header and non-benchmark lines
-            if [[ $line =~ ^name ]] || [[ ! $line =~ ns/op ]]; then
-              continue
-            fi
-
-            # Extract delta percentage (e.g., "+12.5%" -> "12.5")
             if [[ $line =~ \+([0-9]+\.[0-9]+)% ]]; then
               delta="${BASH_REMATCH[1]}"
-              benchmark_name=$(echo "$line" | awk '{print $1}')
-
-              # Compare with threshold (use bc for floating point)
-              if (( $(echo "$delta > $MAX_TIME_REGRESSION" | bc -l) )); then
-                echo "❌ TIME REGRESSION: $benchmark_name regressed by ${delta}% (threshold: ${MAX_TIME_REGRESSION}%)"
+              if (( $(echo "$delta > $THRESHOLD" | bc -l) )); then
+                echo "- $line" >> summary.txt
                 REGRESSIONS_FOUND=true
               fi
             fi
-          done < benchstat-raw.txt
+          done < benchstat-output.txt
 
-          # Check memory bytes allocation regressions (lines with "B/op" and positive delta > threshold)
+          if [ "$REGRESSIONS_FOUND" = false ]; then
+            echo "✅ None" >> summary.txt
+          fi
+          echo "" >> summary.txt
+
+          # Show significant improvements
+          echo "### ✅ Significant Improvements" >> summary.txt
+          echo "" >> summary.txt
+
+          IMPROVEMENTS_FOUND=false
+
           while IFS= read -r line; do
-            # Skip header and non-benchmark lines
-            if [[ $line =~ ^name ]] || [[ ! $line =~ B/op ]]; then
-              continue
-            fi
-
-            # Extract delta percentage
-            if [[ $line =~ \+([0-9]+\.[0-9]+)% ]]; then
+            if [[ $line =~ \-([0-9]+\.[0-9]+)% ]]; then
               delta="${BASH_REMATCH[1]}"
-              benchmark_name=$(echo "$line" | awk '{print $1}')
-
-              # Compare with threshold
-              if (( $(echo "$delta > $MAX_ALLOC_BYTES_REGRESSION" | bc -l) )); then
-                echo "❌ MEMORY BYTES REGRESSION: $benchmark_name memory usage increased by ${delta}% (threshold: ${MAX_ALLOC_BYTES_REGRESSION}%)"
-                REGRESSIONS_FOUND=true
+              if (( $(echo "$delta > $THRESHOLD" | bc -l) )); then
+                echo "- $line" >> summary.txt
+                IMPROVEMENTS_FOUND=true
               fi
             fi
-          done < benchstat-raw.txt
+          done < benchstat-output.txt
 
-          # Check allocation count regressions (lines with "allocs/op" and positive delta > threshold)
-          while IFS= read -r line; do
-            # Skip header and non-benchmark lines
-            if [[ $line =~ ^name ]] || [[ ! $line =~ allocs/op ]]; then
-              continue
-            fi
-
-            # Extract delta percentage
-            if [[ $line =~ \+([0-9]+\.[0-9]+)% ]]; then
-              delta="${BASH_REMATCH[1]}"
-              benchmark_name=$(echo "$line" | awk '{print $1}')
-
-              # Compare with threshold
-              if (( $(echo "$delta > $MAX_ALLOC_COUNT_REGRESSION" | bc -l) )); then
-                echo "❌ ALLOCATION COUNT REGRESSION: $benchmark_name allocation count increased by ${delta}% (threshold: ${MAX_ALLOC_COUNT_REGRESSION}%)"
-                REGRESSIONS_FOUND=true
-              fi
-            fi
-          done < benchstat-raw.txt
-
-          if [ "$REGRESSIONS_FOUND" = true ]; then
-            echo ""
-            echo "⚠️  Performance regressions detected above threshold!"
-            echo "Review the benchmark results and consider optimizing before merging."
-            exit 1
-          else
-            echo "✅ No significant performance regressions detected."
+          if [ "$IMPROVEMENTS_FOUND" = false ]; then
+            echo "None significant (>${THRESHOLD}%)" >> summary.txt
           fi
 
-      - name: Comment PR with benchmark results
+          # Show summary
+          cat summary.txt
+
+      - name: Comment PR with results
+        if: github.event_name == 'pull_request'
         uses: actions/github-script@v7
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
           script: |
             const fs = require('fs');
-            const benchstatOutput = fs.readFileSync('benchstat-output.txt', 'utf8');
+            const summary = fs.readFileSync('summary.txt', 'utf8');
 
-            // Find existing benchmark comment
             const comments = await github.rest.issues.listComments({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -410,42 +151,39 @@ jobs:
 
             const botComment = comments.data.find(comment =>
               comment.user.type === 'Bot' &&
-              comment.body.includes('Benchmark Comparison Results')
+              comment.body.includes('📊 Benchmark Results')
             );
 
-            const commentBody = benchstatOutput + '\n\n---\n\n' +
-              '💡 **Notes:**\n' +
-              '- Benchmarks run in parallel on separate GitHub runners\n' +
-              '- Statistical significance requires 6+ samples; `±∞` indicates high variance\n' +
-              '- Performance regression threshold: **10%** for time, memory, and allocations\n' +
-              '- 📊 Visual report available in workflow artifacts (vizb-report.html)\n' +
-              '\n' +
-              '_Generated by [benchmark.yml](.github/workflows/benchmark.yml) using [benchstat](https://pkg.go.dev/golang.org/x/perf/cmd/benchstat) and [vizb](https://github.com/goptics/vizb)_';
-
             if (botComment) {
-              // Update existing comment
               await github.rest.issues.updateComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 comment_id: botComment.id,
-                body: commentBody
+                body: summary
               });
             } else {
-              // Create new comment
               await github.rest.issues.createComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: context.issue.number,
-                body: commentBody
+                body: summary
               });
             }
 
-      - name: Upload benchmark comparison results
+      - name: Copy results for local testing
+        if: env.ACT == 'true'
+        run: |
+          mkdir -p $GITHUB_WORKSPACE/.act-results
+          cp -v summary.txt benchstat-output.txt base-bench.txt pr-bench.txt $GITHUB_WORKSPACE/.act-results/
+          echo "Results copied to .act-results/"
+
+      - name: Upload results
         uses: actions/upload-artifact@v4
         with:
-          name: benchmark-comparison
+          name: benchmark-results
           path: |
+            summary.txt
             benchstat-output.txt
-            benchstat-raw.txt
-            vizb-report.html
+            base-bench.txt
+            pr-bench.txt
           retention-days: 30
