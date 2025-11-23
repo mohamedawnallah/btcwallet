@@ -100,10 +100,6 @@ func BenchmarkGetTxAPI(b *testing.B) {
 			)
 
 			b.Run("0-Before", func(b *testing.B) {
-				if testing.Short() {
-					b.Skip("skipping 0-Before in short mode")
-				}
-
 				var (
 					result         *GetTransactionResult
 					baselineResult *GetTransactionResult
@@ -171,11 +167,9 @@ func BenchmarkGetTxAPI(b *testing.B) {
 			//   - The new API maintains compatibility with the
 			//     legacy API
 			//   - Regression prevention for future changes
-			if !testing.Short() {
-				assertGetTxAPIsEquivalent(
-					b, bw.Wallet, beforeResult, afterResult,
-				)
-			}
+			assertGetTxAPIsEquivalent(
+				b, bw.Wallet, beforeResult, afterResult,
+			)
 		})
 	}
 }
@@ -275,9 +269,6 @@ func BenchmarkGetTxAPIConcurrently(b *testing.B) {
 			)
 
 			b.Run("0-Before", func(b *testing.B) {
-				if testing.Short() {
-					b.Skip("skipping 0-Before in short mode")
-				}
 				b.ReportAllocs()
 				b.ResetTimer()
 
@@ -311,11 +302,9 @@ func BenchmarkGetTxAPIConcurrently(b *testing.B) {
 				})
 			})
 
-			if !testing.Short() {
-				assertGetTxAPIsEquivalent(
-					b, bw.Wallet, before, after,
-				)
-			}
+			assertGetTxAPIsEquivalent(
+				b, bw.Wallet, before, after,
+			)
 		})
 	}
 }
@@ -420,9 +409,6 @@ func BenchmarkListTxnsAPI(b *testing.B) {
 			)
 
 			b.Run("0-Before", func(b *testing.B) {
-				if testing.Short() {
-					b.Skip("skipping 0-Before in short mode")
-				}
 				var (
 					result      *GetTransactionsResult
 					firstResult *GetTransactionsResult
@@ -491,11 +477,9 @@ func BenchmarkListTxnsAPI(b *testing.B) {
 			//   - The new API maintains compatibility with the
 			//     legacy API
 			//   - Regression prevention for future changes
-			if !testing.Short() {
-				assertListTxnsAPIsEquivalent(
-					b, bw.Wallet, beforeResult, afterResult,
-				)
-			}
+			assertListTxnsAPIsEquivalent(
+				b, bw.Wallet, beforeResult, afterResult,
+			)
 		})
 	}
 }
@@ -595,9 +579,6 @@ func BenchmarkListTxnsAPIConcurrently(b *testing.B) {
 			)
 
 			b.Run("0-Before", func(b *testing.B) {
-				if testing.Short() {
-					b.Skip("skipping 0-Before in short mode")
-				}
 				b.ReportAllocs()
 				b.ResetTimer()
 
@@ -633,11 +614,9 @@ func BenchmarkListTxnsAPIConcurrently(b *testing.B) {
 				})
 			})
 
-			if !testing.Short() {
-				assertListTxnsAPIsEquivalent(
-					b, bw.Wallet, beforeResult, afterResult,
-				)
-			}
+			assertListTxnsAPIsEquivalent(
+				b, bw.Wallet, beforeResult, afterResult,
+			)
 		})
 	}
 }

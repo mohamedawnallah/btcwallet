@@ -77,10 +77,6 @@ func BenchmarkListAddressesAPI(b *testing.B) {
 			)
 
 			b.Run("0-Before", func(b *testing.B) {
-				if testing.Short() {
-					b.Skip("skipping 0-Before in short mode")
-				}
-
 				b.ReportAllocs()
 				b.ResetTimer()
 
@@ -169,10 +165,6 @@ func BenchmarkAddressInfoAPI(b *testing.B) {
 			)
 
 			b.Run("0-Before", func(b *testing.B) {
-				if testing.Short() {
-					b.Skip("skipping 0-Before in short mode")
-				}
-
 				b.ReportAllocs()
 				b.ResetTimer()
 
@@ -261,10 +253,6 @@ func BenchmarkGetUnusedAddressAPI(b *testing.B) {
 			)
 
 			b.Run("0-Before", func(b *testing.B) {
-				if testing.Short() {
-					b.Skip("skipping 0-Before in short mode")
-				}
-
 				b.ReportAllocs()
 				b.ResetTimer()
 
@@ -365,10 +353,6 @@ func BenchmarkNewAddressAPI(b *testing.B) {
 			)
 
 			b.Run("0-Before", func(b *testing.B) {
-				if testing.Short() {
-					b.Skip("skipping 0-Before in short mode")
-				}
-
 				b.ReportAllocs()
 				b.ResetTimer()
 
@@ -448,9 +432,6 @@ func BenchmarkImportPublicKeyAPI(b *testing.B) {
 
 		b.Run(name, func(b *testing.B) {
 			b.Run("0-Before", func(b *testing.B) {
-				if testing.Short() {
-					b.Skip("skipping 0-Before in short mode")
-				}
 				// Create a fresh wallet to avoid conflicts with
 				// keys potentially imported in previous
 				// benchmarks. Each benchmark needs its own
@@ -587,9 +568,6 @@ func BenchmarkImportTaprootScriptAPI(b *testing.B) {
 
 		b.Run(name, func(b *testing.B) {
 			b.Run("0-Before", func(b *testing.B) {
-				if testing.Short() {
-					b.Skip("skipping 0-Before in short mode")
-				}
 				bw := setupBenchmarkWallet(
 					b, benchmarkWalletConfig{
 						scopes:       scopes,
@@ -736,10 +714,6 @@ func BenchmarkScriptForOutputAPI(b *testing.B) {
 			testTxOut := generateTestTxOut(b, testAddr)
 
 			b.Run("0-Before", func(b *testing.B) {
-				if testing.Short() {
-					b.Skip("skipping 0-Before in short mode")
-				}
-
 				b.ReportAllocs()
 				b.ResetTimer()
 

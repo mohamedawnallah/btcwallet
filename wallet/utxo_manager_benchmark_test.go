@@ -77,10 +77,6 @@ func BenchmarkGetUtxoAPI(b *testing.B) {
 			testOutpoint := getTestUtxoOutpoint(outpoints)
 
 			b.Run("0-Before", func(b *testing.B) {
-				if testing.Short() {
-					b.Skip("skipping 0-Before in short mode")
-				}
-
 				b.ReportAllocs()
 				b.ResetTimer()
 
@@ -176,10 +172,6 @@ func BenchmarkListUnspentAPI(b *testing.B) {
 			)
 
 			b.Run("0-Before", func(b *testing.B) {
-				if testing.Short() {
-					b.Skip("skipping 0-Before in short mode")
-				}
-
 				b.ReportAllocs()
 				b.ResetTimer()
 
@@ -281,10 +273,6 @@ func BenchmarkLeaseOutputAPI(b *testing.B) {
 			testOutpoint := getTestUtxoOutpoint(outpoints)
 
 			b.Run("0-Before", func(b *testing.B) {
-				if testing.Short() {
-					b.Skip("skipping 0-Before in short mode")
-				}
-
 				b.ReportAllocs()
 				b.ResetTimer()
 
@@ -383,10 +371,6 @@ func BenchmarkReleaseOutputAPI(b *testing.B) {
 			testOutpoint := getTestUtxoOutpoint(outpoints)
 
 			b.Run("0-Before", func(b *testing.B) {
-				if testing.Short() {
-					b.Skip("skipping 0-Before in short mode")
-				}
-
 				b.ReportAllocs()
 				b.ResetTimer()
 
@@ -497,10 +481,6 @@ func BenchmarkListLeasedOutputsAPI(b *testing.B) {
 			)
 
 			b.Run("0-Before", func(b *testing.B) {
-				if testing.Short() {
-					b.Skip("skipping 0-Before in short mode")
-				}
-
 				b.ReportAllocs()
 				b.ResetTimer()
 

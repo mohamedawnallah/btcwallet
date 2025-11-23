@@ -128,10 +128,6 @@ func BenchmarkBroadcastAPI(b *testing.B) {
 			)
 
 			b.Run("0-Before", func(b *testing.B) {
-				if testing.Short() {
-					b.Skip("skipping 0-Before in short mode")
-				}
-
 				result := make(map[chainhash.Hash]*wire.MsgTx)
 				baselineResult := make(
 					map[chainhash.Hash]*wire.MsgTx,
@@ -198,8 +194,8 @@ func BenchmarkBroadcastAPI(b *testing.B) {
 					index := i % len(bw.unconfirmedTxs)
 					tx := bw.unconfirmedTxs[index]
 
-					err := bw.PublishTransaction(
-						tx, broadcastLabel,
+					err := bw.Broadcast(
+						b.Context(), tx, broadcastLabel,
 					)
 					require.NoError(b, err)
 
@@ -227,11 +223,9 @@ func BenchmarkBroadcastAPI(b *testing.B) {
 				afterResult = result
 			})
 
-			if !testing.Short() {
-				assertBroadcastAPIsEquivalent(
-					b, beforeResult, afterResult,
-				)
-			}
+			assertBroadcastAPIsEquivalent(
+				b, beforeResult, afterResult,
+			)
 		})
 	}
 }
@@ -350,10 +344,6 @@ func BenchmarkBroadcastAPIConcurrently(b *testing.B) {
 			)
 
 			b.Run("0-Before", func(b *testing.B) {
-				if testing.Short() {
-					b.Skip("skipping 0-Before in short mode")
-				}
-
 				broadcastLabel := "concurrent-before"
 
 				// Clear mempool to ensure clean state for
@@ -410,11 +400,9 @@ func BenchmarkBroadcastAPIConcurrently(b *testing.B) {
 				require.NoError(b, err)
 			})
 
-			if !testing.Short() {
-				assertBroadcastAPIsEquivalent(
-					b, beforeResult, afterResult,
-				)
-			}
+			assertBroadcastAPIsEquivalent(
+				b, beforeResult, afterResult,
+			)
 		})
 	}
 }
