@@ -74,65 +74,8 @@ jobs:
 
       - name: Compare and analyze results
         run: |
-          # Run benchstat
-          benchstat base-bench.txt pr-bench.txt > benchstat-output.txt
-
-          # Performance regression threshold
-          THRESHOLD=10
-
-          echo "## 📊 Benchmark Results" > summary.txt
-          echo "" >> summary.txt
-
-          # Show benchstat results
-          echo "### Detailed Comparison" >> summary.txt
-          echo '```' >> summary.txt
-          cat benchstat-output.txt >> summary.txt
-          echo '```' >> summary.txt
-          echo "" >> summary.txt
-
-          # Check for regressions beyond threshold
-          echo "### 🔴 Regressions Beyond ${THRESHOLD}% Threshold" >> summary.txt
-          echo "" >> summary.txt
-
-          REGRESSIONS_FOUND=false
-
-          while IFS= read -r line; do
-            if [[ $line =~ \+([0-9]+\.[0-9]+)% ]]; then
-              delta="${BASH_REMATCH[1]}"
-              if (( $(echo "$delta > $THRESHOLD" | bc -l) )); then
-                echo "- $line" >> summary.txt
-                REGRESSIONS_FOUND=true
-              fi
-            fi
-          done < benchstat-output.txt
-
-          if [ "$REGRESSIONS_FOUND" = false ]; then
-            echo "✅ None" >> summary.txt
-          fi
-          echo "" >> summary.txt
-
-          # Show significant improvements
-          echo "### ✅ Significant Improvements" >> summary.txt
-          echo "" >> summary.txt
-
-          IMPROVEMENTS_FOUND=false
-
-          while IFS= read -r line; do
-            if [[ $line =~ \-([0-9]+\.[0-9]+)% ]]; then
-              delta="${BASH_REMATCH[1]}"
-              if (( $(echo "$delta > $THRESHOLD" | bc -l) )); then
-                echo "- $line" >> summary.txt
-                IMPROVEMENTS_FOUND=true
-              fi
-            fi
-          done < benchstat-output.txt
-
-          if [ "$IMPROVEMENTS_FOUND" = false ]; then
-            echo "None significant (>${THRESHOLD}%)" >> summary.txt
-          fi
-
-          # Show summary
-          cat summary.txt
+          chmod +x scripts/analyze-benchmarks.sh
+          scripts/analyze-benchmarks.sh base-bench.txt pr-bench.txt summary.txt 10
 
       - name: Comment PR with results
         if: github.event_name == 'pull_request'
@@ -140,35 +83,8 @@ jobs:
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
           script: |
-            const fs = require('fs');
-            const summary = fs.readFileSync('summary.txt', 'utf8');
-
-            const comments = await github.rest.issues.listComments({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-            });
-
-            const botComment = comments.data.find(comment =>
-              comment.user.type === 'Bot' &&
-              comment.body.includes('📊 Benchmark Results')
-            );
-
-            if (botComment) {
-              await github.rest.issues.updateComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                comment_id: botComment.id,
-                body: summary
-              });
-            } else {
-              await github.rest.issues.createComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: context.issue.number,
-                body: summary
-              });
-            }
+            const postComment = require('./scripts/post-benchmark-comment.js');
+            await postComment(github, context);
 
       - name: Copy results for local testing
         if: env.ACT == 'true'
