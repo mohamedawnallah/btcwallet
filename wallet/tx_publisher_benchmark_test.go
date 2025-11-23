@@ -198,8 +198,8 @@ func BenchmarkBroadcastAPI(b *testing.B) {
 					index := i % len(bw.unconfirmedTxs)
 					tx := bw.unconfirmedTxs[index]
 
-					err := bw.Broadcast(
-						b.Context(), tx, broadcastLabel,
+					err := bw.PublishTransaction(
+						tx, broadcastLabel,
 					)
 					require.NoError(b, err)
 
