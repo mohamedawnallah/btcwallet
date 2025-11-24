@@ -123,7 +123,7 @@ jobs:
 
           # Get list of packages with benchmarks.
           go list ./... | xargs -I{} sh -c 'go test -list="Benchmark.*" {} 2>/dev/null | grep -q "^Benchmark" && echo {}' | \
-            parallel -j ${{ env.BENCHMARK_PARALLEL_JOBS }} --line-buffer \
+            parallel -j ${{ env.BENCHMARK_COUNT }} --line-buffer \
             "go test -count=${{ env.BENCHMARK_COUNT }} -timeout=0 -benchmem -bench=. -run=^$ {} 2>&1" | \
             tee pr-bench-raw.txt
 
