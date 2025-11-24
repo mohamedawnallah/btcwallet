@@ -24,7 +24,6 @@ env:
   GO111MODULE: on
   GO_VERSION: 1.24.6
   BENCHMARK_COUNT: 6
-  BENCHMARK_TAGS: 'dev error'
   BENCHMARK_TIMEOUT_MINUTES: 30
   # Fail CI if performance degrades by this percentage or more. It reduces false
   # reduces false positives from CI noise.
@@ -66,7 +65,7 @@ jobs:
           git fetch origin $BASE_REF
           git checkout origin/$BASE_REF
 
-          go test -count=${{ env.BENCHMARK_COUNT }} -tags=${{ env.BENCHMARK_TAGS }} -timeout=0 -benchmem -bench='^BenchmarkBroadcastAPIConcurrently' -run=NONE ./wallet \
+          go test -count=${{ env.BENCHMARK_COUNT }} -tags='dev error' -timeout=0 -benchmem -bench='^BenchmarkBroadcastAPIConcurrently' -run=NONE ./wallet \
             2>&1 | tee base-bench-raw.txt
 
           grep '^Benchmark' base-bench-raw.txt | sort > base-bench.txt
@@ -84,7 +83,7 @@ jobs:
           git fetch origin $HEAD_REF
           git checkout origin/$HEAD_REF
 
-          go test -count=${{ env.BENCHMARK_COUNT }} -tags=${{ env.BENCHMARK_TAGS }} -timeout=0 -benchmem -bench='^BenchmarkBroadcastAPIConcurrently' -run=NONE ./wallet \
+          go test -count=${{ env.BENCHMARK_COUNT }} -tags='dev error' -timeout=0 -benchmem -bench='^BenchmarkBroadcastAPIConcurrently' -run=NONE ./wallet \
             2>&1 | tee pr-bench-raw.txt
 
           grep '^Benchmark' pr-bench-raw.txt | sort > pr-bench.txt
