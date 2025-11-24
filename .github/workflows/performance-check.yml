@@ -23,7 +23,7 @@ env:
   BENCHMARK_RUNNER_OS: ubuntu-latest
   BENCHMARK_COUNT: 6
   BENCHMARK_TIMEOUT_MINUTES: 30
-  BENCHMARK_BASE_REF: CI-benchmarks
+  BENCHMARK_BASE_REF: CI-benchmarks-xxxx3
   BENCHMARK_PARALLEL_JOBS: 5
   # Fail CI if performance degrades by this percentage or more. It reduces false
   # positives from CI noise.
