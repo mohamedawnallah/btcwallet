@@ -3,17 +3,17 @@
 // post-benchmark-comment.js
 // Posts a PR comment with benchmark results
 
-import { existsSync, readFileSync } from 'fs';
+const fs = require('fs');
 
 async function postComment(github, context) {
   const summaryFile = process.env.SUMMARY_FILE || 'summary.txt';
 
-  if (!existsSync(summaryFile)) {
+  if (!fs.existsSync(summaryFile)) {
     console.log(`Summary file ${summaryFile} not found, skipping PR comment`);
     return;
   }
 
-  const summary = readFileSync(summaryFile, 'utf8');
+  const summary = fs.readFileSync(summaryFile, 'utf8');
 
   console.log('Creating new benchmark comment');
   await github.rest.issues.createComment({
@@ -24,4 +24,4 @@ async function postComment(github, context) {
   });
 }
 
-export default postComment;
+module.exports = postComment;
