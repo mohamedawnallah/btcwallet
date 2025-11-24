@@ -20,17 +20,21 @@ env:
   GOBIN: /home/runner/work/go/bin
   GO111MODULE: on
   GO_VERSION: 1.24.6
+  BENCHMARK_RUNNER_OS: ubuntu-latest
   BENCHMARK_COUNT: 6
   BENCHMARK_TIMEOUT_MINUTES: 30
-  # Fail CI if performance degrades by this percentage or more (reduces false positives from CI noise)
+  BENCHMARK_BASE_REF: CI-benchmarks
+  BENCHMARK_PARALLEL_JOBS: 5
+  # Fail CI if performance degrades by this percentage or more. It reduces false
+  # positives from CI noise.
   PERFORMANCE_REGRESSION_THRESHOLD: 30
-  # Highlight improvements that meet or exceed this percentage
+  # Highlight improvements that meet or exceed this percentage.
   PERFORMANCE_IMPROVEMENT_THRESHOLD: 30
 
 jobs:
   benchmark-base:
     name: Benchmark Base Branch (${{ github.base_ref }})
-    runs-on: ubuntu-latest
+    runs-on: ${{ env.BENCHMARK_RUNNER_OS }}
     if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
 
     steps:
@@ -47,20 +51,28 @@ jobs:
         with:
           go-version: '${{ env.GO_VERSION }}'
 
+      - name: Install GNU Parallel
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y parallel
+
       - name: Run benchmarks on base branch (${{ github.base_ref }})
         timeout-minutes: ${{ fromJSON(env.BENCHMARK_TIMEOUT_MINUTES) }}
         run: |
           BASE_REF="${{ github.base_ref }}"
           if [ -z "$BASE_REF" ]; then
-            BASE_REF="CI-benchmarks"
+            BASE_REF="${{ env.BENCHMARK_BASE_REF }}"
           fi
 
           echo "Running benchmarks on base branch: $BASE_REF"
           git fetch origin $BASE_REF
           git checkout origin/$BASE_REF
 
-          go test -count=${{ env.BENCHMARK_COUNT }} -timeout=0 -benchmem -bench='^BenchmarkBroadcastAPI' -run=NONE ./wallet \
-            2>&1 | tee base-bench-raw.txt
+          # Get list of all benchmarks and run in parallel using GNU Parallel
+          go test -list='Benchmark.*' ./... | grep '^Benchmark' | \
+            parallel -j ${{ env.BENCHMARK_PARALLEL_JOBS }} --line-buffer \
+            "go test -count=${{ env.BENCHMARK_COUNT }} -timeout=0 -benchmem -bench='^{}$' -run=NONE ./... 2>&1" | \
+            tee base-bench-raw.txt
 
           grep '^Benchmark' base-bench-raw.txt | sort > base-bench.txt
 
@@ -73,7 +85,7 @@ jobs:
 
   benchmark-pr:
     name: Benchmark PR Branch (${{ github.head_ref }})
-    runs-on: ubuntu-latest
+    runs-on: ${{ env.BENCHMARK_RUNNER_OS }}
     if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
 
     steps:
@@ -89,6 +101,11 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: '${{ env.GO_VERSION }}'
+
+      - name: Install GNU Parallel
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y parallel
 
       - name: Run benchmarks on PR branch (${{ github.head_ref }})
         timeout-minutes: ${{ fromJSON(env.BENCHMARK_TIMEOUT_MINUTES) }}
@@ -102,8 +119,11 @@ jobs:
           git fetch origin $HEAD_REF
           git checkout origin/$HEAD_REF
 
-          go test -count=${{ env.BENCHMARK_COUNT }} -timeout=0 -benchmem -bench='^BenchmarkBroadcastAPI' -run=NONE ./wallet \
-            2>&1 | tee pr-bench-raw.txt
+          # Get list of all benchmarks and run in parallel using GNU Parallel
+          go test -list='Benchmark.*' ./... | grep '^Benchmark' | \
+            parallel -j ${{ env.BENCHMARK_PARALLEL_JOBS }} --line-buffer \
+            "go test -count=${{ env.BENCHMARK_COUNT }} -timeout=0 -benchmem -bench='^{}$' -run=NONE ./... 2>&1" | \
+            tee pr-bench-raw.txt
 
           grep '^Benchmark' pr-bench-raw.txt | sort > pr-bench.txt
 
@@ -116,7 +136,7 @@ jobs:
 
   compare:
     name: Compare and Report
-    runs-on: ubuntu-latest
+    runs-on: ${{ env.BENCHMARK_RUNNER_OS }}
     needs: [benchmark-base, benchmark-pr]
     if: always()
 

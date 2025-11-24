@@ -58,6 +58,14 @@ if [ "$SIGNIFICANT_PERFORMANCE_IMPROVEMENTS_FOUND" = false ]; then
 fi
 echo "" >> "$OUTPUT_FILE"
 
+# Add notes about benchmark results
+echo "---" >> "$OUTPUT_FILE"
+echo "" >> "$OUTPUT_FILE"
+echo "📝 **Notes:**" >> "$OUTPUT_FILE"
+echo "- Variance may occur even on same hardware due to shared CI environment (CPU load, cache state, thermal throttling)" >> "$OUTPUT_FILE"
+echo "- False positives possible for both regressions and improvements - run benchmarks locally for reflective comparison" >> "$OUTPUT_FILE"
+echo "" >> "$OUTPUT_FILE"
+
 # Show benchstat results in collapsible section.
 echo "<details>" >> "$OUTPUT_FILE"
 echo "<summary>📋 Detailed Comparison</summary>" >> "$OUTPUT_FILE"
