@@ -25,6 +25,7 @@ env:
   GO111MODULE: on
   GO_VERSION: 1.24.6
   BENCHMARK_COUNT: 6
+  BENCHMARK_PARALLELISM: 3
   BENCHMARK_BASE_REF: CI-benchmarks-xxxx3
   # Fail CI if performance degrades by this percentage or more. It reduces false
   # positives from CI noise.
@@ -70,7 +71,7 @@ jobs:
 
           # Get list of packages with benchmarks.
           go list ./... | xargs -I{} sh -c 'go test -list="Benchmark.*" {} 2>/dev/null | grep -q "^Benchmark" && echo {}' | \
-            parallel -j ${{ env.BENCHMARK_COUNT }} --line-buffer \
+            parallel -j ${{ env.BENCHMARK_PARALLELISM }} --line-buffer \
             "go test -count=${{ env.BENCHMARK_COUNT }} -timeout=0 -benchmem -bench=. -run=^$ {} 2>&1" | \
             tee base-bench-raw.txt
 
@@ -120,7 +121,7 @@ jobs:
 
           # Get list of packages with benchmarks.
           go list ./... | xargs -I{} sh -c 'go test -list="Benchmark.*" {} 2>/dev/null | grep -q "^Benchmark" && echo {}' | \
-            parallel -j ${{ env.BENCHMARK_COUNT }} --line-buffer \
+            parallel -j ${{ env.BENCHMARK_PARALLELISM }} --line-buffer \
             "go test -count=${{ env.BENCHMARK_COUNT }} -timeout=0 -benchmem -bench=. -run=^$ {} 2>&1" | \
             tee pr-bench-raw.txt
 
