@@ -313,20 +313,17 @@ func BenchmarkNewAccountAPI(b *testing.B) {
 				b.ReportAllocs()
 				b.ResetTimer()
 
-				count := 0
 				for b.Loop() {
 					// Generate a unique account name for each
 					// iteration to ensure the idempotent nature of
 					// the benchmark.
-					accountName := fmt.Sprintf("new-account-before-%d-%d",
-						time.Now().UnixNano(), count)
+					accountName := fmt.Sprintf("new-account-before-%d",
+						time.Now().UnixNano())
 
 					_, err := bw.NextAccount(
 						scopes[0], accountName,
 					)
 					require.NoError(b, err)
-
-					count++
 				}
 			})
 
@@ -334,20 +331,17 @@ func BenchmarkNewAccountAPI(b *testing.B) {
 				b.ReportAllocs()
 				b.ResetTimer()
 
-				count := 0
 				for b.Loop() {
 					// Generate a unique account name for each
 					// iteration to ensure the idempotent nature of
 					// the benchmark.
-					accountName := fmt.Sprintf("new-account-after-%d-%d",
-						time.Now().UnixNano(), count)
+					accountName := fmt.Sprintf("new-account-after-%d",
+						time.Now().UnixNano())
 
 					_, err := bw.NewAccount(
 						b.Context(), scopes[0], accountName,
 					)
 					require.NoError(b, err)
-
-					count++
 				}
 			})
 		})

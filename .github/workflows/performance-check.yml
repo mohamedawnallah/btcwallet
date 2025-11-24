@@ -67,10 +67,10 @@ jobs:
           git fetch origin $BASE_REF
           git checkout origin/$BASE_REF
 
-          # Get list of all benchmarks and run in parallel using GNU Parallel
-          go test -list='Benchmark.*' ./... | grep '^Benchmark' | \
+          # Get list of packages with benchmarks.
+          go list ./... | xargs -I{} sh -c 'go test -list="Benchmark.*" {} 2>/dev/null | grep -q "^Benchmark" && echo {}' | \
             parallel -j ${{ env.BENCHMARK_PARALLEL_JOBS }} --line-buffer \
-            "go test -count=${{ env.BENCHMARK_COUNT }} -timeout=0 -benchmem -bench='^{}$' -run=NONE ./... 2>&1" | \
+            "go test -count=${{ env.BENCHMARK_COUNT }} -timeout=0 -benchmem -bench=. -run=^$ {} 2>&1" | \
             tee base-bench-raw.txt
 
           grep '^Benchmark' base-bench-raw.txt | sort > base-bench.txt
@@ -118,10 +118,10 @@ jobs:
           git fetch origin $HEAD_REF
           git checkout origin/$HEAD_REF
 
-          # Get list of all benchmarks and run in parallel using GNU Parallel
-          go test -list='Benchmark.*' ./... | grep '^Benchmark' | \
+          # Get list of packages with benchmarks.
+          go list ./... | xargs -I{} sh -c 'go test -list="Benchmark.*" {} 2>/dev/null | grep -q "^Benchmark" && echo {}' | \
             parallel -j ${{ env.BENCHMARK_PARALLEL_JOBS }} --line-buffer \
-            "go test -count=${{ env.BENCHMARK_COUNT }} -timeout=0 -benchmem -bench='^{}$' -run=NONE ./... 2>&1" | \
+            "go test -count=${{ env.BENCHMARK_COUNT }} -timeout=0 -benchmem -bench=. -run=^$ {} 2>&1" | \
             tee pr-bench-raw.txt
 
           grep '^Benchmark' pr-bench-raw.txt | sort > pr-bench.txt
