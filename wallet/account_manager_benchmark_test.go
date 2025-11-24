@@ -3,6 +3,7 @@ package wallet
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/btcsuite/btcwallet/waddrmgr"
 	"github.com/stretchr/testify/require"
@@ -317,8 +318,8 @@ func BenchmarkNewAccountAPI(b *testing.B) {
 					// Generate a unique account name for each
 					// iteration to ensure the idempotent nature of
 					// the benchmark.
-					accountName := fmt.Sprintf("new-account-before-%d",
-						count)
+					accountName := fmt.Sprintf("new-account-before-%d-%d",
+						time.Now().UnixNano(), count)
 
 					_, err := bw.NextAccount(
 						scopes[0], accountName,
@@ -338,8 +339,8 @@ func BenchmarkNewAccountAPI(b *testing.B) {
 					// Generate a unique account name for each
 					// iteration to ensure the idempotent nature of
 					// the benchmark.
-					accountName := fmt.Sprintf("new-account-after-%d",
-						count)
+					accountName := fmt.Sprintf("new-account-after-%d-%d",
+						time.Now().UnixNano(), count)
 
 					_, err := bw.NewAccount(
 						b.Context(), scopes[0], accountName,
@@ -707,8 +708,8 @@ func BenchmarkImportAccountAPI(b *testing.B) {
 					// Generate a unique account name for each
 					// iteration to ensure the idempotent nature of
 					// the benchmark.
-					accountName := fmt.Sprintf("import-account-before-%d",
-						count)
+					accountName := fmt.Sprintf("import-account-before-%d-%d",
+						time.Now().UnixNano(), count)
 
 					_, err := bw.ImportAccountDeprecated(
 						accountName, accountKey,
@@ -729,8 +730,8 @@ func BenchmarkImportAccountAPI(b *testing.B) {
 					// Generate a unique account name for each
 					// iteration to ensure the idempotent nature of
 					// the benchmark.
-					accountName := fmt.Sprintf("import-account-after-%d",
-						count)
+					accountName := fmt.Sprintf("import-account-after-%d-%d",
+						time.Now().UnixNano(), count)
 
 					_, err := bw.ImportAccount(
 						b.Context(), accountName, accountKey,
