@@ -23,7 +23,6 @@ env:
   BENCHMARK_COUNT: 6
   BENCHMARK_TIMEOUT_MINUTES: 30
   BENCHMARK_BASE_REF: CI-benchmarks-xxxx3
-  BENCHMARK_PARALLEL_JOBS: 5
   # Fail CI if performance degrades by this percentage or more. It reduces false
   # positives from CI noise.
   PERFORMANCE_REGRESSION_THRESHOLD: 30
@@ -69,7 +68,7 @@ jobs:
 
           # Get list of packages with benchmarks.
           go list ./... | xargs -I{} sh -c 'go test -list="Benchmark.*" {} 2>/dev/null | grep -q "^Benchmark" && echo {}' | \
-            parallel -j ${{ env.BENCHMARK_PARALLEL_JOBS }} --line-buffer \
+            parallel -j ${{ env.BENCHMARK_COUNT }} --line-buffer \
             "go test -count=${{ env.BENCHMARK_COUNT }} -timeout=0 -benchmem -bench=. -run=^$ {} 2>&1" | \
             tee base-bench-raw.txt
 
