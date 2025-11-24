@@ -54,7 +54,7 @@ while IFS= read -r line; do
 done < benchstat-output.txt
 
 if [ "$SIGNIFICANT_PERFORMANCE_IMPROVEMENTS_FOUND" = false ]; then
-  echo "None" >> "$OUTPUT_FILE"
+  echo "ℹ️ None" >> "$OUTPUT_FILE"
 fi
 echo "" >> "$OUTPUT_FILE"
 

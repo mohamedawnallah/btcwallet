@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 // post-benchmark-comment.js
-// Posts or updates a PR comment with benchmark results
+// Posts a PR comment with benchmark results
 
 import { existsSync, readFileSync } from 'fs';
 

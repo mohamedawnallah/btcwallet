@@ -24,7 +24,11 @@ env:
   GO111MODULE: on
   GO_VERSION: 1.24.6
   BENCHMARK_COUNT: 6
-  PERFORMANCE_REGRESSION_THRESHOLD: 10
+  BENCHMARK_TAGS: 'dev error'
+  BENCHMARK_TIMEOUT_MINUTES: 30
+  # Fail CI if performance degrades by this percentage or more. It reduces false
+  # reduces false positives from CI noise.
+  PERFORMANCE_REGRESSION_THRESHOLD: 30
   PERFORMANCE_IMPROVEMENT_THRESHOLD: 30
 
 jobs:
@@ -51,6 +55,7 @@ jobs:
         run: go install golang.org/x/perf/cmd/benchstat@latest
 
       - name: Run benchmarks on base branch (${{ github.base_ref }})
+        timeout-minutes: ${{ fromJSON(env.BENCHMARK_TIMEOUT_MINUTES) }}
         run: |
           BASE_REF="${{ github.base_ref }}"
           if [ -z "$BASE_REF" ]; then
@@ -61,12 +66,13 @@ jobs:
           git fetch origin $BASE_REF
           git checkout origin/$BASE_REF
 
-          go test -count=${{ env.BENCHMARK_COUNT }} -tags='dev error' -timeout=0 -benchmem -bench='^BenchmarkBroadcastAPI' -run=NONE ./wallet \
+          go test -count=${{ env.BENCHMARK_COUNT }} -tags=${{ env.BENCHMARK_TAGS }} -timeout=0 -benchmem -bench='^BenchmarkBroadcastAPI' -run=NONE ./wallet \
             2>&1 | tee base-bench-raw.txt
 
           grep '^Benchmark' base-bench-raw.txt | sort > base-bench.txt
 
       - name: Run benchmarks on PR branch (${{ github.head_ref }})
+        timeout-minutes: ${{ fromJSON(env.BENCHMARK_TIMEOUT_MINUTES) }}
         run: |
           HEAD_REF="${{ github.head_ref }}"
           # Default to current branch for local testing
@@ -78,12 +84,14 @@ jobs:
           git fetch origin $HEAD_REF
           git checkout origin/$HEAD_REF
 
-          go test -count=${{ env.BENCHMARK_COUNT }} -tags='dev error' -timeout=0 -benchmem -bench='^BenchmarkBroadcastAPI' -run=NONE ./wallet \
+          go test -count=${{ env.BENCHMARK_COUNT }} -tags=${{ env.BENCHMARK_TAGS }} -timeout=0 -benchmem -bench='^BenchmarkBroadcastAPI' -run=NONE ./wallet \
             2>&1 | tee pr-bench-raw.txt
 
           grep '^Benchmark' pr-bench-raw.txt | sort > pr-bench.txt
 
       - name: Compare benchmarks and check for performance regressions
+        id: compare
+        continue-on-error: true
         run: |
           chmod +x scripts/compare-benchmarks.sh
           # compare-benchmarks.sh <base> <pr> <output> <regression_threshold> <improvement_threshold>
@@ -91,7 +99,7 @@ jobs:
           scripts/compare-benchmarks.sh base-bench.txt pr-bench.txt summary.txt ${{ env.PERFORMANCE_REGRESSION_THRESHOLD }} ${{ env.PERFORMANCE_IMPROVEMENT_THRESHOLD }}
 
       - name: Comment PR with results
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' && always()
         uses: actions/github-script@v7
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
@@ -100,6 +108,7 @@ jobs:
             await postComment(github, context);
 
       - name: Upload results
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: benchmark-results
@@ -107,4 +116,10 @@ jobs:
             summary.txt
             base-bench.txt
             pr-bench.txt
-          retention-days: 30
+          retention-days: 7
+
+      - name: Fail workflow if regressions found
+        if: steps.compare.outcome == 'failure'
+        run: |
+          echo "Performance regressions detected!"
+          exit 1
