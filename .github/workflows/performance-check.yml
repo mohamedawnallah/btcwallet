@@ -23,7 +23,7 @@ env:
   BENCHMARK_RUNNER_OS: ubuntu-latest
   BENCHMARK_COUNT: 6
   BENCHMARK_TIMEOUT_MINUTES: 30
-  BENCHMARK_BASE_REF: CI-benchmarks-xxxx3
+  # BENCHMARK_BASE_REF:
   BENCHMARK_PARALLEL_JOBS: 5
   # Fail CI if performance degrades by this percentage or more. It reduces false
   # positives from CI noise.
@@ -61,7 +61,7 @@ jobs:
         run: |
           BASE_REF="${{ github.base_ref }}"
           if [ -z "$BASE_REF" ]; then
-            BASE_REF="${{ env.BENCHMARK_BASE_REF }}"
+            BASE_REF="CI-benchmarks-xxxx3"
           fi
 
           echo "Running benchmarks on base branch: $BASE_REF"
