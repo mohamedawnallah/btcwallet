@@ -17,7 +17,7 @@ echo "## 📊 Benchmark Results" > "$OUTPUT_FILE"
 echo "" >> "$OUTPUT_FILE"
 
 # Check for regressions beyond threshold.
-echo "### 🔴 Performance Regressions ≥${REGRESSION_THRESHOLD}%" >> "$OUTPUT_FILE"
+echo "### 🔴 Significant Performance Regressions ≥${REGRESSION_THRESHOLD}%" >> "$OUTPUT_FILE"
 echo "" >> "$OUTPUT_FILE"
 
 REGRESSIONS_FOUND=false
@@ -60,7 +60,7 @@ echo "" >> "$OUTPUT_FILE"
 
 # Show benchstat results in collapsible section.
 echo "<details>" >> "$OUTPUT_FILE"
-echo "<summary>📋 Benchmark Comparison</summary>" >> "$OUTPUT_FILE"
+echo "<summary>📋 Detailed Comparison</summary>" >> "$OUTPUT_FILE"
 echo "" >> "$OUTPUT_FILE"
 echo '```' >> "$OUTPUT_FILE"
 cat benchstat-output.txt >> "$OUTPUT_FILE"
