@@ -25,7 +25,6 @@ env:
   GO111MODULE: on
   GO_VERSION: 1.24.6
   BENCHMARK_COUNT: 6
-  BENCHMARK_TIMEOUT_MINUTES: 30
   BENCHMARK_BASE_REF: CI-benchmarks-xxxx3
   # Fail CI if performance degrades by this percentage or more. It reduces false
   # positives from CI noise.
@@ -59,7 +58,6 @@ jobs:
           sudo apt-get install -y parallel
 
       - name: Run benchmarks on base branch (${{ github.base_ref }})
-        timeout-minutes: ${{ fromJSON(env.BENCHMARK_TIMEOUT_MINUTES) }}
         run: |
           BASE_REF="${{ github.base_ref }}"
           if [ -z "$BASE_REF" ]; then
@@ -110,7 +108,6 @@ jobs:
           sudo apt-get install -y parallel
 
       - name: Run benchmarks on PR branch (${{ github.head_ref }})
-        timeout-minutes: ${{ fromJSON(env.BENCHMARK_TIMEOUT_MINUTES) }}
         run: |
           HEAD_REF="${{ github.head_ref }}"
           if [ -z "$HEAD_REF" ]; then

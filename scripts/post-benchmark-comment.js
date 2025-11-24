@@ -2,6 +2,9 @@
 
 // post-benchmark-comment.js
 // Posts a PR comment with benchmark results
+//
+// Environment variables:
+//   SUMMARY_FILE (default: summary.txt) - path to benchmark summary file
 
 const fs = require('fs');
 

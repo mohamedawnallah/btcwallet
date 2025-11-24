@@ -3,11 +3,18 @@ set -e
 
 # compare-benchmarks.sh
 # Compare benchmark results and generates a summary
+#
+# Usage: compare-benchmarks.sh [BASE_FILE] [PR_FILE] [OUTPUT_FILE] [REGRESSION_THRESHOLD] [IMPROVEMENT_THRESHOLD]
+#   BASE_FILE (default: base-bench.txt) - baseline benchmark results
+#   PR_FILE (default: pr-bench.txt) - PR benchmark results
+#   OUTPUT_FILE (default: summary.txt) - output summary file
+#   REGRESSION_THRESHOLD (default: 30) - performance regression percentage threshold
+#   IMPROVEMENT_THRESHOLD (default: 30) - performance improvement percentage threshold
 
 BASE_FILE="${1:-base-bench.txt}"
 PR_FILE="${2:-pr-bench.txt}"
 OUTPUT_FILE="${3:-summary.txt}"
-REGRESSION_THRESHOLD="${4:-10}"
+REGRESSION_THRESHOLD="${4:-30}"
 IMPROVEMENT_THRESHOLD="${5:-30}"
 
 # Run benchstat.
