@@ -1,4 +1,4 @@
-name: Benchmark Comparison
+name: Performance Benchmarks
 
 on:
   pull_request:
@@ -23,6 +23,9 @@ env:
   GOBIN: /home/runner/work/go/bin
   GO111MODULE: on
   GO_VERSION: 1.24.6
+  BENCHMARK_COUNT: 6
+  PERFORMANCE_REGRESSION_THRESHOLD: 10
+  PERFORMANCE_IMPROVEMENT_THRESHOLD: 30
 
 jobs:
   benchmark:
@@ -47,23 +50,23 @@ jobs:
       - name: Install benchstat
         run: go install golang.org/x/perf/cmd/benchstat@latest
 
-      - name: Run benchmarks on base branch
+      - name: Run benchmarks on base branch (${{ github.base_ref }})
         run: |
           BASE_REF="${{ github.base_ref }}"
-          # Default to interface-wallet for local testing (where benchmarks exist)
           if [ -z "$BASE_REF" ]; then
-            BASE_REF="interface-wallet"
+            BASE_REF="CI-benchmarks"
           fi
 
+          echo "Running benchmarks on base branch: $BASE_REF"
           git fetch origin $BASE_REF
           git checkout origin/$BASE_REF
 
-          go test -count=6 -tags='dev error' -timeout=0 -benchmem -bench='^BenchmarkBroadcastAPI' -run=NONE ./wallet \
+          go test -count=${{ env.BENCHMARK_COUNT }} -tags='dev error' -timeout=0 -benchmem -bench='^BenchmarkBroadcastAPI' -run=NONE ./wallet \
             2>&1 | tee base-bench-raw.txt
 
           grep '^Benchmark' base-bench-raw.txt | sort > base-bench.txt
 
-      - name: Run benchmarks on PR branch
+      - name: Run benchmarks on PR branch (${{ github.head_ref }})
         run: |
           HEAD_REF="${{ github.head_ref }}"
           # Default to current branch for local testing
@@ -71,19 +74,21 @@ jobs:
             HEAD_REF=$(git rev-parse --abbrev-ref HEAD)
           fi
 
+          echo "Running benchmarks on PR branch: $HEAD_REF"
           git fetch origin $HEAD_REF
           git checkout origin/$HEAD_REF
 
-          go test -count=6 -tags='dev error' -timeout=0 -benchmem -bench='^BenchmarkBroadcastAPI' -run=NONE ./wallet \
+          go test -count=${{ env.BENCHMARK_COUNT }} -tags='dev error' -timeout=0 -benchmem -bench='^BenchmarkBroadcastAPI' -run=NONE ./wallet \
             2>&1 | tee pr-bench-raw.txt
 
           grep '^Benchmark' pr-bench-raw.txt | sort > pr-bench.txt
 
-      - name: Compare and analyze results
+      - name: Compare benchmarks and check for performance regressions
         run: |
-          chmod +x scripts/analyze-benchmarks.sh
-          # analyze-benchmarks.sh <base> <pr> <output> <regression_threshold> <improvement_threshold>
-          scripts/analyze-benchmarks.sh base-bench.txt pr-bench.txt summary.txt 10 30
+          chmod +x scripts/compare-benchmarks.sh
+          # compare-benchmarks.sh <base> <pr> <output> <regression_threshold> <improvement_threshold>
+          # Script exits with code 1 if regressions beyond threshold are detected
+          scripts/compare-benchmarks.sh base-bench.txt pr-bench.txt summary.txt ${{ env.PERFORMANCE_REGRESSION_THRESHOLD }} ${{ env.PERFORMANCE_IMPROVEMENT_THRESHOLD }}
 
       - name: Comment PR with results
         if: github.event_name == 'pull_request'
@@ -94,20 +99,12 @@ jobs:
             const postComment = require('./scripts/post-benchmark-comment.js');
             await postComment(github, context);
 
-      - name: Copy results for local testing
-        if: env.ACT == 'true'
-        run: |
-          mkdir -p $GITHUB_WORKSPACE/.act-results
-          cp -v summary.txt benchstat-output.txt base-bench.txt pr-bench.txt $GITHUB_WORKSPACE/.act-results/
-          echo "Results copied to .act-results/"
-
       - name: Upload results
         uses: actions/upload-artifact@v4
         with:
           name: benchmark-results
           path: |
             summary.txt
-            benchstat-output.txt
             base-bench.txt
             pr-bench.txt
           retention-days: 30
