@@ -71,7 +71,7 @@ jobs:
           git checkout origin/$BASE_REF
 
           # Get list of packages with benchmarks.
-          go list ./... | xargs -I{} sh -c 'go test -list="Benchmark.*" {} 2>/dev/null | grep -q "^Benchmark" && echo {}' | \
+          go list ./... | xargs -I{} sh -c 'go test -list="Benchmark.*" {} 2>/dev/null | grep -q "^Benchmark" && echo {} || true' | \
             parallel -j ${{ env.BENCHMARK_PARALLELISM }} --line-buffer \
             "go test -count=${{ env.BENCHMARK_COUNT }} -timeout=0 -benchmem -bench=. -run=^$ {} 2>&1" | \
             tee base-bench-raw.txt
@@ -121,7 +121,7 @@ jobs:
           git checkout origin/$HEAD_REF
 
           # Get list of packages with benchmarks.
-          go list ./... | xargs -I{} sh -c 'go test -list="Benchmark.*" {} 2>/dev/null | grep -q "^Benchmark" && echo {}' | \
+          go list ./... | xargs -I{} sh -c 'go test -list="Benchmark.*" {} 2>/dev/null | grep -q "^Benchmark" && echo {} || true' | \
             parallel -j ${{ env.BENCHMARK_PARALLELISM }} --line-buffer \
             "go test -count=${{ env.BENCHMARK_COUNT }} -timeout=0 -benchmem -bench=. -run=^$ {} 2>&1" | \
             tee pr-bench-raw.txt
