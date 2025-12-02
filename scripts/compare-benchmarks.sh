@@ -66,7 +66,7 @@ echo "### ✅ Significant Performance Improvements" >> "$OUTPUT_FILE"
 echo "" >> "$OUTPUT_FILE"
 
 IMPROVEMENTS_FOUND=false
-improvements=$(echo "$analysis_output" | sed -n '/^IMPROVEMENTS:/,/^DETAILED:/p' | grep -v "^IMPROVEMENTS:" | grep -v "^DETAILED:" | grep -v "^$" || true)
+improvements=$(echo "$analysis_output" | sed -n '/^IMPROVEMENTS:/,/^AGGREGATED:/p' | grep -v "^IMPROVEMENTS:" | grep -v "^AGGREGATED:" | grep -v "^$" || true)
 
 if [ -n "$improvements" ]; then
   while IFS='|' read -r family details count; do
@@ -91,6 +91,16 @@ echo "- Real regressions show consistent % change across ALL input sizes" >> "$O
 echo "- Random CI noise produces inconsistent, oscillating deltas" >> "$OUTPUT_FILE"
 echo "- CV (Coefficient of Variation) = σ/mean measures consistency (<${CONSISTENCY_THRESHOLD} = significant)" >> "$OUTPUT_FILE"
 echo "- Requires ≥3 input sizes to establish a pattern" >> "$OUTPUT_FILE"
+echo "" >> "$OUTPUT_FILE"
+
+# Show aggregated metrics in collapsible section
+echo "<details>" >> "$OUTPUT_FILE"
+echo "<summary>📊 Aggregated Metrics (Mean ± StdDev per Benchmark)</summary>" >> "$OUTPUT_FILE"
+echo "" >> "$OUTPUT_FILE"
+echo '```' >> "$OUTPUT_FILE"
+echo "$analysis_output" | sed -n '/^AGGREGATED:/,/^DETAILED:/p' | grep -v "^AGGREGATED:" | grep -v "^DETAILED:" >> "$OUTPUT_FILE"
+echo '```' >> "$OUTPUT_FILE"
+echo "</details>" >> "$OUTPUT_FILE"
 echo "" >> "$OUTPUT_FILE"
 
 # Show detailed comparison in collapsible section

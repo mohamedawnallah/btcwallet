@@ -188,6 +188,21 @@ def main():
         if significant:
             print(f"{family}|{' | '.join(details)}|{count}")
 
+    print("\nAGGREGATED:")
+    for family, deltas in sorted(family_deltas.items()):
+        count = len(deltas['time'])
+        if count < 1:
+            continue
+
+        time_mean, time_std, time_cv = calc_stats(deltas['time'])
+        mem_mean, mem_std, mem_cv = calc_stats(deltas['mem'])
+        allocs_mean, allocs_std, allocs_cv = calc_stats(deltas['allocs'])
+
+        print(f"{family} (n={count}):")
+        print(f"  time: {time_mean:+.1f}% ±{time_std:.1f}% (CV={time_cv:.2f})")
+        print(f"  mem:  {mem_mean:+.1f}% ±{mem_std:.1f}% (CV={mem_cv:.2f})")
+        print(f"  allocs: {allocs_mean:+.1f}% ±{allocs_std:.1f}% (CV={allocs_cv:.2f})")
+
     print("\nDETAILED:")
     for line in sorted(detailed):
         print(line)
