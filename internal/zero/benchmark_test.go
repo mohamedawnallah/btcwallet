@@ -38,50 +38,77 @@ func zrange(b []byte) {
 	}
 }
 
-func BenchmarkXor32(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		xor(bytes32)
+// BenchmarkXor benchmarks the xor zeroing implementation across different
+// byte slice sizes.
+func BenchmarkXor(b *testing.B) {
+	sizes := []struct {
+		name string
+		data []byte
+	}{
+		{"32-bytes", bytes32},
+		{"64-bytes", bytes64},
+	}
+
+	for _, size := range sizes {
+		b.Run(size.name, func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				xor(size.data)
+			}
+		})
 	}
 }
 
-func BenchmarkXor64(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		xor(bytes64)
+// BenchmarkRange benchmarks the range zeroing implementation across different
+// byte slice sizes.
+func BenchmarkRange(b *testing.B) {
+	sizes := []struct {
+		name string
+		data []byte
+	}{
+		{"32-bytes", bytes32},
+		{"64-bytes", bytes64},
+	}
+
+	for _, size := range sizes {
+		b.Run(size.name, func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				zrange(size.data)
+			}
+		})
 	}
 }
 
-func BenchmarkRange32(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		zrange(bytes32)
+// BenchmarkBytes benchmarks the Bytes function across different byte slice
+// sizes.
+func BenchmarkBytes(b *testing.B) {
+	sizes := []struct {
+		name string
+		data []byte
+	}{
+		{"32-bytes", bytes32},
+		{"64-bytes", bytes64},
+	}
+
+	for _, size := range sizes {
+		b.Run(size.name, func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				Bytes(size.data)
+			}
+		})
 	}
 }
 
-func BenchmarkRange64(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		zrange(bytes64)
-	}
-}
+// BenchmarkBytea benchmarks the Bytea functions across different array sizes.
+func BenchmarkBytea(b *testing.B) {
+	b.Run("32-bytes", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			Bytea32(bytea32)
+		}
+	})
 
-func BenchmarkBytes32(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		Bytes(bytes32)
-	}
-}
-
-func BenchmarkBytes64(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		Bytes(bytes64)
-	}
-}
-
-func BenchmarkBytea32(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		Bytea32(bytea32)
-	}
-}
-
-func BenchmarkBytea64(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		Bytea64(bytea64)
-	}
+	b.Run("64-bytes", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			Bytea64(bytea64)
+		}
+	})
 }
