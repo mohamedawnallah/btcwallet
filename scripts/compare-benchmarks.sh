@@ -2,7 +2,7 @@
 set -e
 
 # compare-benchmarks.sh
-# Compare benchmark results and generates a summary
+# Compare benchmark results using growth pattern consistency analysis
 #
 # Usage: compare-benchmarks.sh [BASE_FILE] [PR_FILE] [OUTPUT_FILE] [REGRESSION_THRESHOLD] [IMPROVEMENT_THRESHOLD]
 #   BASE_FILE (default: base-bench.txt) - baseline benchmark results
@@ -10,6 +10,10 @@ set -e
 #   OUTPUT_FILE (default: summary.txt) - output summary file
 #   REGRESSION_THRESHOLD (default: 30) - performance regression percentage threshold
 #   IMPROVEMENT_THRESHOLD (default: 30) - performance improvement percentage threshold
+#
+# This script detects statistical significance by analyzing consistency of
+# performance changes across multiple input sizes. Real regressions show
+# consistent patterns across all input sizes, while noise is inconsistent.
 
 BASE_FILE="${1:-base-bench.txt}"
 PR_FILE="${2:-pr-bench.txt}"
@@ -17,75 +21,91 @@ OUTPUT_FILE="${3:-summary.txt}"
 REGRESSION_THRESHOLD="${4:-30}"
 IMPROVEMENT_THRESHOLD="${5:-30}"
 
-# Run benchstat.
-benchstat "$BASE_FILE" "$PR_FILE" > benchstat-output.txt
+# Consistency threshold: coefficient of variation (CV = std_dev / mean)
+# Lower CV means more consistent changes across input sizes
+CONSISTENCY_THRESHOLD="0.5"
 
-echo "## 📊 Benchmark Results" > "$OUTPUT_FILE"
+# Get the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Run analysis using Python script
+analysis_output=$(python3 "$SCRIPT_DIR/analyze-benchmarks.py" \
+  "$BASE_FILE" "$PR_FILE" \
+  "$REGRESSION_THRESHOLD" "$IMPROVEMENT_THRESHOLD" "$CONSISTENCY_THRESHOLD")
+
+# Generate summary output
+echo "## 📊 Benchmark Results (Growth Pattern Analysis)" > "$OUTPUT_FILE"
+echo "" >> "$OUTPUT_FILE"
+echo "Detection method: Consistency analysis across multiple input sizes" >> "$OUTPUT_FILE"
+echo "- **Significant** = Mean delta ≥${REGRESSION_THRESHOLD}% AND consistent (CV <${CONSISTENCY_THRESHOLD}) AND ≥3 input sizes" >> "$OUTPUT_FILE"
 echo "" >> "$OUTPUT_FILE"
 
-# Check for regressions beyond threshold.
-echo "### 🔴 Significant Performance Regressions ≥${REGRESSION_THRESHOLD}%" >> "$OUTPUT_FILE"
+# Extract regressions
+echo "### 🔴 Significant Performance Regressions" >> "$OUTPUT_FILE"
 echo "" >> "$OUTPUT_FILE"
 
 REGRESSIONS_FOUND=false
+regressions=$(echo "$analysis_output" | sed -n '/^REGRESSIONS:/,/^IMPROVEMENTS:/p' | grep -v "^REGRESSIONS:" | grep -v "^IMPROVEMENTS:" | grep -v "^$" || true)
 
-while IFS= read -r line; do
-  if [[ $line =~ \+([0-9]+\.[0-9]+)% ]]; then
-    delta="${BASH_REMATCH[1]}"
-    if (( $(echo "$delta >= $REGRESSION_THRESHOLD" | bc -l) )); then
-      echo "- $line" >> "$OUTPUT_FILE"
+if [ -n "$regressions" ]; then
+  while IFS='|' read -r family details count; do
+    if [ -n "$family" ]; then
+      echo "- **${family}**: ${details} [${count} input sizes]" >> "$OUTPUT_FILE"
       REGRESSIONS_FOUND=true
     fi
-  fi
-done < benchstat-output.txt
+  done <<< "$regressions"
+fi
 
 if [ "$REGRESSIONS_FOUND" = false ]; then
   echo "👍 None" >> "$OUTPUT_FILE"
 fi
 echo "" >> "$OUTPUT_FILE"
 
-# Show significant improvements.
-echo "### ✅ Significant Performance Improvements ≥${IMPROVEMENT_THRESHOLD}%" >> "$OUTPUT_FILE"
+# Extract improvements
+echo "### ✅ Significant Performance Improvements" >> "$OUTPUT_FILE"
 echo "" >> "$OUTPUT_FILE"
 
-SIGNIFICANT_PERFORMANCE_IMPROVEMENTS_FOUND=false
+IMPROVEMENTS_FOUND=false
+improvements=$(echo "$analysis_output" | sed -n '/^IMPROVEMENTS:/,/^DETAILED:/p' | grep -v "^IMPROVEMENTS:" | grep -v "^DETAILED:" | grep -v "^$" || true)
 
-while IFS= read -r line; do
-  if [[ $line =~ \-([0-9]+\.[0-9]+)% ]]; then
-    delta="${BASH_REMATCH[1]}"
-    if (( $(echo "$delta >= $IMPROVEMENT_THRESHOLD" | bc -l) )); then
-      echo "- $line" >> "$OUTPUT_FILE"
-      SIGNIFICANT_PERFORMANCE_IMPROVEMENTS_FOUND=true
+if [ -n "$improvements" ]; then
+  while IFS='|' read -r family details count; do
+    if [ -n "$family" ]; then
+      echo "- **${family}**: ${details} [${count} input sizes]" >> "$OUTPUT_FILE"
+      IMPROVEMENTS_FOUND=true
     fi
-  fi
-done < benchstat-output.txt
+  done <<< "$improvements"
+fi
 
-if [ "$SIGNIFICANT_PERFORMANCE_IMPROVEMENTS_FOUND" = false ]; then
+if [ "$IMPROVEMENTS_FOUND" = false ]; then
   echo "ℹ️ None" >> "$OUTPUT_FILE"
 fi
 echo "" >> "$OUTPUT_FILE"
 
-# Add notes about benchmark results
+# Add notes about methodology
 echo "---" >> "$OUTPUT_FILE"
 echo "" >> "$OUTPUT_FILE"
-echo "📝 **Notes:**" >> "$OUTPUT_FILE"
-echo "- Variance may occur even on same hardware due to shared CI environment (CPU load, cache state, thermal throttling)" >> "$OUTPUT_FILE"
-echo "- False positives possible for both regressions and improvements - run benchmarks locally for reflective comparison" >> "$OUTPUT_FILE"
+echo "📝 **Methodology:**" >> "$OUTPUT_FILE"
+echo "- Uses growth pattern consistency analysis instead of multiple runs" >> "$OUTPUT_FILE"
+echo "- Real regressions show consistent % change across ALL input sizes" >> "$OUTPUT_FILE"
+echo "- Random CI noise produces inconsistent, oscillating deltas" >> "$OUTPUT_FILE"
+echo "- CV (Coefficient of Variation) = σ/mean measures consistency (<${CONSISTENCY_THRESHOLD} = significant)" >> "$OUTPUT_FILE"
+echo "- Requires ≥3 input sizes to establish a pattern" >> "$OUTPUT_FILE"
 echo "" >> "$OUTPUT_FILE"
 
-# Show benchstat results in collapsible section.
+# Show detailed comparison in collapsible section
 echo "<details>" >> "$OUTPUT_FILE"
-echo "<summary>📋 Detailed Comparison</summary>" >> "$OUTPUT_FILE"
+echo "<summary>📋 Detailed Per-Size Comparison</summary>" >> "$OUTPUT_FILE"
 echo "" >> "$OUTPUT_FILE"
 echo '```' >> "$OUTPUT_FILE"
-cat benchstat-output.txt >> "$OUTPUT_FILE"
+echo "$analysis_output" | sed -n '/^DETAILED:/,$p' | grep -v "^DETAILED:" >> "$OUTPUT_FILE"
 echo '```' >> "$OUTPUT_FILE"
 echo "</details>" >> "$OUTPUT_FILE"
 
-# Show summary.
+# Show summary
 cat "$OUTPUT_FILE"
 
-# Exit with error code if regressions found beyond threshold.
+# Exit with error code if regressions found
 if [ "$REGRESSIONS_FOUND" = true ]; then
   exit 1
 fi
