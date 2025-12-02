@@ -44,12 +44,33 @@ def parse_benchmarks(filename):
 def extract_family(name):
     """Extract benchmark family from full name
 
-    BenchmarkListAccounts/05-Accounts-05-UTXOs/1-After
-    -> (BenchmarkListAccounts/1-After, 05-Accounts-05-UTXOs)
+    Supports both 2-level and 3-level structures:
+
+    3-level (with variant - e.g., during refactoring with Before/After):
+      BenchmarkListAccounts/05-Accounts-05-UTXOs/1-After
+      -> family: BenchmarkListAccounts/1-After
+      -> size: 05-Accounts-05-UTXOs
+
+    2-level (without variant - e.g., after refactoring):
+      BenchmarkListAccounts/05-Accounts-05-UTXOs
+      -> family: BenchmarkListAccounts
+      -> size: 05-Accounts-05-UTXOs
     """
+    # Try 3-level structure first (Name/Size/Variant)
     match = re.match(r'^(Benchmark[^/]+)/([^/]+)/(.+)$', name)
     if match:
-        return f"{match.group(1)}/{match.group(3)}", match.group(2)
+        family = f"{match.group(1)}/{match.group(3)}"
+        size = match.group(2)
+        return family, size
+
+    # Try 2-level structure (Name/Size)
+    match = re.match(r'^(Benchmark[^/]+)/([^/]+)$', name)
+    if match:
+        family = match.group(1)
+        size = match.group(2)
+        return family, size
+
+    # No match - benchmark will be ignored
     return None, None
 
 
